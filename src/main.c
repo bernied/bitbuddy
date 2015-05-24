@@ -439,9 +439,11 @@ bitbuddy_gbc_handler(int pre, bddGbcStat *stat)
 void
 init()
 {
-  bdd_init(args.n,10000);
+  bdd_init(args.n, 10000);
   bdd_autoreorder(BDD_REORDER_WIN2ITE);
-  bdd_gbc_hook(&bitbuddy_gbc_handler);
+  if (args.g) {
+    bdd_gbc_hook(&bitbuddy_gbc_handler);
+  }
 }
 
 int
