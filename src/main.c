@@ -12,28 +12,36 @@
 #define VERSION "0.1"
 
 struct arg_t args;
+Bdd_map* bdd_free_list = NULL;
 
 /*
-v / version           flag        "  version of bitbuddy"
-i / initial-hash      flag        "  use standard initial sha256 hash"
-h / hash              string      "  hash value input"
-a                     string      "  first set of bits"
-b                     string      "  second set of bits"
-l / length            flag        "  use length of parameter a"
-s / sat               string      "  attempt to find input for given output"
-c / chunk-size        int         "  size of h, a and b (defaults to input size/3)"
+v / version           flag        "version of bitbuddy"
+a                     string      "first set of bits"
+b                     string      "second set of bits"
+c / chunk-size        int         "size of h, a and b (defaults to input size/3)"
+f / free              flag        "don't free nodes"
+g / garbage-collect   flag        "free before garbage collection"
+h / hash              string      "hash value input"
+i / initial-hash      flag        "use standard initial sha256 hash"
+l / length            flag        "use length of parameter a"
+n / nodes             int         "number of nodes to pre-allocate"
+s / sat               string      "attempt to find input for given output"
 */
 void
 init_default_args(struct arg_t* args)
 {
-  args->v = false;
-  args->i = false;
-  args->h = NULL;
   args->a = NULL;
   args->b = NULL;
-  args->l = false;
-  args->s = NULL;
   args->c = 0;
+  args->f = false;
+  args->g = false;
+  args->h = NULL;
+  args->i = false;
+  args->l = false;
+  args->n = 100000;
+  args->s = NULL;
+
+  args->v = false;
 }
 
 char*
@@ -47,6 +55,18 @@ handle_arguments(int argc, char** argv, struct arg_t* args)
 
   if (args->v) {
     printf("bitbuddy version %s\n", VERSION);
+  }
+
+  if (args->f && args->g)
+  {
+    fprintf(stderr, "'do not free' and 'garbage collect' options can not both be enabled\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (args->n < 10000)
+  {
+    fprintf(stderr, "number of nodes must be >= 10,000; setting to 10,000\n");
+    args->n = 10000;
   }
 
   if (args->i)
@@ -215,18 +235,8 @@ Bdd_map*
 get_bdd(State* state, int n)
 {
   Bdd_map *s;
-
-  // LAMb: fix by using hash table!
-  // for(s=state->map; s != NULL; s=s->hh.next) {
-  //   if (s->node == n) {
-  //     return s;
-  //   }
-  // }
-  // return NULL;
-
-// printf("node = %d\n", n);
   HASH_FIND_INT(state->map, &n, s);
-// printf("value = %d\n", s->func);
+
  return s;
 }
 
@@ -238,6 +248,7 @@ del_bdd(State* state, int n)
     return NULL;
   }
   HASH_DEL(state->map, map);
+
   return map;
 }
 
@@ -319,8 +330,17 @@ process_line(Line* line, State* state)
       map = del_bdd(state, line->data.n.node);
       if (map != NULL)
       {
-//        bdd_delref(map->func);
-        free(map);
+        if (args.g)
+        {
+          map->hh.next = bdd_free_list;
+          bdd_free_list = map;
+        }
+        else if (!args.f) {
+          bdd_delref(map->func);
+        }
+        else {
+         free(map);
+        }
       }
       else {
         fprintf(stderr, "missing node %d to free\n", line->data.n.node);
@@ -372,8 +392,9 @@ process_file(FILE* file)
         fprintf(stderr, "%4d: %s:%s", line_number, err, line_buffer);
       }
 
+      printf("%d: %s", state->line+1, line_buffer);
+      fflush(stdout);
       err = process_line(&line, state); // requires table inputs and outputs
-      printf("%d: %s", state->line, line_buffer);
       if (err != NULL)
       {
         fprintf(stderr, "%4d: %s:%s", line_number, err, line_buffer);
@@ -385,10 +406,41 @@ process_file(FILE* file)
 }
 
 void
+free_list()
+{
+  printf("FREE NODES: ");
+
+  Bdd_map* node = bdd_free_list;
+  Bdd_map* next = NULL;
+
+  int i=0;
+  while (node != NULL)
+  {
+    bdd_delref(node->func);
+    next = (Bdd_map*) node->hh.next;
+    free(node);
+    node = next;
+    i++;
+  }
+  bdd_free_list = NULL;
+  printf("%d\n", i);
+}
+
+void
+bitbuddy_gbc_handler(int pre, bddGbcStat *stat)
+{
+  if (pre && bdd_free_list != NULL) {
+    free_list();
+  }
+  bdd_default_gbchandler(pre, stat);
+}
+
+void
 init()
 {
-  bdd_init(200000000,10000);
+  bdd_init(args.n,10000);
   bdd_autoreorder(BDD_REORDER_WIN2ITE);
+  bdd_gbc_hook(&bitbuddy_gbc_handler);
 }
 
 int

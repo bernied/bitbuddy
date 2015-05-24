@@ -3,10 +3,12 @@ SRC=.
 OBJ=.
 OUT=.
 
+LBDD=/usr/local/lib/libbdd.a
+
 CC=clang
 # g++ -I/usr/local/include myfile.cc -o myfile -L/usr/local/lib -lbdd
 CFLAGS=-I$(INC) -Wno-initializer-overrides -O3
-LDFLAGS=/usr/local/lib/libbdd.a -O3
+LDFLAGS=-O3
 
 DEPS=$(INC)/parse_cl.h $(INC)/types.h
 OBJS=$(OBJ)/parse_cl.o $(OBJ)/main.o
@@ -15,7 +17,7 @@ OBJS=$(OBJ)/parse_cl.o $(OBJ)/main.o
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(OUT)/bitbuddy: $(OBJS)
-	$(CC) -o $(OUT)/$@ $^ $(LDFLAGS)
+	$(CC) -o $(OUT)/$@ $^ $(LBDD) $(LDFLAGS)
 
 .PHONY: clean
 
