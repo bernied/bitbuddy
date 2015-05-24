@@ -335,11 +335,12 @@ process_line(Line* line, State* state)
           map->hh.next = bdd_free_list;
           bdd_free_list = map;
         }
-        else if (!args.f) {
-          bdd_delref(map->func);
-        }
-        else {
-         free(map);
+        else
+        {
+          if (!args.f) {
+            bdd_delref(map->func);
+          }
+          free(map);
         }
       }
       else {
