@@ -237,7 +237,18 @@ get_bdd(State* state, int n)
   Bdd_map *s;
   HASH_FIND_INT(state->map, &n, s);
 
- return s;
+  if (s == NULL && n < 0)
+  {
+    int inv_n = -n;
+    HASH_FIND_INT(state->map, &inv_n, s);
+    if (s != NULL)
+    {
+      bdd inverse = bdd_addref(bdd_not(s->func));
+      put_bdd(state, n, inverse);
+    }
+  }
+
+  return s;
 }
 
 Bdd_map*
@@ -250,6 +261,38 @@ del_bdd(State* state, int n)
   HASH_DEL(state->map, map);
 
   return map;
+}
+
+void
+free_bdd(Bdd_map* map)
+{
+  if (map != NULL)
+  {
+    if (args.g)
+    {
+      map->hh.next = bdd_free_list;
+      bdd_free_list = map;
+    }
+    else
+    {
+      if (!args.f) {
+        bdd_delref(map->func);
+      }
+      free(map);
+    }
+  }
+}
+
+void
+free_node(State* state, int n)
+{
+  Bdd_map *map;
+
+  map = del_bdd(state, n);
+  free_bdd(map);
+
+  map = del_bdd(state, -n); // remove inverse
+  free_bdd(map);
 }
 
 char*
@@ -327,25 +370,7 @@ process_line(Line* line, State* state)
     break;
 
     case FREE:
-      map = del_bdd(state, line->data.n.node);
-      if (map != NULL)
-      {
-        if (args.g)
-        {
-          map->hh.next = bdd_free_list;
-          bdd_free_list = map;
-        }
-        else
-        {
-          if (!args.f) {
-            bdd_delref(map->func);
-          }
-          free(map);
-        }
-      }
-      else {
-        fprintf(stderr, "missing node %d to free\n", line->data.n.node);
-      }
+      free_node(state, line->data.n.node);
     break;
 
     default:
