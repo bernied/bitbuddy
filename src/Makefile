@@ -7,7 +7,7 @@ LBDD=/usr/local/lib/libbdd.a
 
 CC=clang
 # g++ -I/usr/local/include myfile.cc -o myfile -L/usr/local/lib -lbdd
-CFLAGS=-I$(INC) -Wno-initializer-overrides -O3
+CFLAGS=-std=c99 -I$(INC) -Wno-initializer-overrides -O3
 LDFLAGS=-O3
 
 DEPS=$(INC)/parse_cl.h $(INC)/types.h

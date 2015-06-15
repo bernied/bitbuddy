@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <bdd.h>
 
 #include "types.h"
 #include "parse_cl.h"
@@ -115,7 +114,7 @@ parse_line(char* str, Line* line)
       else if(*c == 'U')
       {
         line->op = OUT;
-        i = 2;
+        i = 3;
       }
       else {
         return "Expected 'OR' or 'OUT'";
@@ -181,9 +180,14 @@ parse_line(char* str, Line* line)
     break;
 
     case IN:
+      line->data.in.node = x;
+      line->data.in.index = y;
+    break;
+
     case OUT:
-      line->data.i_o.node = x;
-      line->data.i_o.index = y;
+      line->data.out.node = x;
+      line->data.out.input = y;
+      line->data.out.index = z;
     break;
 
     case AND:
@@ -245,6 +249,7 @@ get_bdd(State* state, int n)
     {
       bdd inverse = bdd_addref(bdd_not(s->func));
       put_bdd(state, n, inverse);
+      HASH_FIND_INT(state->map, &n, s);
     }
   }
 
@@ -323,19 +328,19 @@ process_line(Line* line, State* state)
     break;
 
     case IN:
-      var = bdd_ithvar(line->data.i_o.index);
-      state->inputs[line->data.i_o.index] = var;
-      put_bdd(state, line->data.i_o.node, var);
+      var = bdd_ithvar(line->data.in.index);
+      state->inputs[line->data.in.index] = var;
+      put_bdd(state, line->data.in.node, var);
     break;
 
     case OUT:
-      map = get_bdd(state, line->data.i_o.node);
+      map = get_bdd(state, line->data.out.input);
       if (map == NULL) {
         return "Unable to find output in hash table";
       }
       var = map->func;
       bdd_addref(var);
-      state->outputs[line->data.i_o.index] = var;
+      state->outputs[line->data.out.index] = var;
       // LAMb: handle outputs and SAT situations
     break;
 
@@ -466,6 +471,7 @@ init()
 {
   bdd_init(args.n, 10000);
   bdd_autoreorder(BDD_REORDER_WIN2ITE);
+//  bdd_autoreorder(BDD_REORDER_NONE);
   if (args.g) {
     bdd_gbc_hook(&bitbuddy_gbc_handler);
   }

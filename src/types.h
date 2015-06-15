@@ -40,9 +40,16 @@ struct Io
   uint32 outputs;
 };
 
-struct In_Out
+struct In
 {
   uint32 node;
+  uint32 index;
+};
+
+struct Out
+{
+  uint32 node;
+  uint32 input;
   uint32 index;
 };
 
@@ -58,7 +65,8 @@ typedef struct line_t
   {
     struct Node n;
     struct Io io;
-    struct In_Out i_o;
+    struct In in;
+    struct Out out;
     struct Free f;
   } data;
 } Line;
