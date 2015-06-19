@@ -2,12 +2,14 @@ INC=.
 SRC=.
 OBJ=.
 OUT=.
+BDD=CUDD
 
-LBDD=/usr/local/lib/libbdd.a
+#LBDD=/usr/local/lib/libbdd.a
+LBDD=/usr/local/lib/libcudd.a /usr/local/lib/libepd.a /usr/local/lib/libutil.a /usr/local/lib/libmtr.a /usr/local/lib/libst.a
 
 CC=clang
 # g++ -I/usr/local/include myfile.cc -o myfile -L/usr/local/lib -lbdd
-CFLAGS=-std=c99 -I$(INC) -Wno-initializer-overrides -O3
+CFLAGS=-std=c99 -I/usr/local/include -I$(INC) -D$(BDD) -Wno-initializer-overrides -O3
 LDFLAGS=-O3
 
 DEPS=$(INC)/parse_cl.h $(INC)/types.h

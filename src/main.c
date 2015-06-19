@@ -13,6 +13,10 @@
 struct arg_t args;
 Bdd_map* bdd_free_list = NULL;
 
+#ifdef CUDD
+  DdManager* manager = NULL;
+#endif
+
 /*
 v / version           flag        "version of bitbuddy"
 a                     string      "first set of bits"
@@ -216,7 +220,7 @@ parse_line(char* str, Line* line)
 }
 
 Bdd_map*
-create_bdd_map(int node, bdd func)
+create_bdd_map(int node, BB_bdd func)
 {
   Bdd_map* map = (Bdd_map*) malloc(sizeof(Bdd_map));
   if (map == NULL) {
@@ -228,8 +232,18 @@ create_bdd_map(int node, bdd func)
   return map;
 }
 
+BB_bdd
+BB_not(BB_bdd bdd)
+{
+#ifdef BUDDY
+  return bdd_not(bdd);
+#elif defined(CUDD)
+  return Cudd_Not(bdd);
+#endif
+}
+
 void
-put_bdd(State* state, int n, bdd func)
+put_bdd(State* state, int n, BB_bdd func)
 {
   Bdd_map* map = create_bdd_map(n, func);
   HASH_ADD_INT(state->map, node, map);
@@ -247,7 +261,7 @@ get_bdd(State* state, int n)
     HASH_FIND_INT(state->map, &inv_n, s);
     if (s != NULL)
     {
-      bdd inverse = bdd_addref(bdd_not(s->func));
+      BB_bdd inverse = BB_addref(BB_not(s->func));
       put_bdd(state, n, inverse);
       HASH_FIND_INT(state->map, &n, s);
     }
@@ -281,7 +295,7 @@ free_bdd(Bdd_map* map)
     else
     {
       if (!args.f) {
-        bdd_delref(map->func);
+        BB_delref(map->func);
       }
       free(map);
     }
@@ -300,10 +314,39 @@ free_node(State* state, int n)
   free_bdd(map);
 }
 
+BB_bdd
+BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
+{
+#ifdef BUDDY
+  return bdd_apply(lhs, rhs, op);
+#elif defined(CUDD)
+  BB_bdd bdd;
+  switch(op)
+  {
+    case BB_AND:
+      bdd = Cudd_bddAnd(manager, lhs, rhs);
+    break;
+
+    case BB_OR:
+      bdd = Cudd_bddOr(manager, lhs, rhs);
+    break;
+
+    case BB_XOR:
+      bdd = Cudd_bddXor(manager, lhs, rhs);
+    break;
+
+    default:
+      exit(-1); //LAMb
+  }
+  Cudd_Ref(bdd);
+  return bdd;
+#endif
+}
+
 char*
 process_line(Line* line, State* state)
 {
-  bdd var;
+  BB_bdd var;
   Bdd_map *map, *lhs, *rhs;
   int op =-1;
 
@@ -315,20 +358,20 @@ process_line(Line* line, State* state)
       }
       state->num_inputs = line->data.io.inputs;
       state->num_outputs = line->data.io.outputs;
-      state->inputs = (bdd*) calloc(state->num_inputs, sizeof(bdd));
+      state->inputs = (BB_bdd*) calloc(state->num_inputs, sizeof(BB_bdd));
       if (state->inputs == NULL) {
         return "Unable to allocate memory for inputs";
       }
-      bdd_setvarnum(state->num_inputs);
+      BB_setvarnum(state->num_inputs);
 
-      state->outputs = (bdd*) calloc(state->num_outputs, sizeof(bdd));
+      state->outputs = (BB_bdd*) calloc(state->num_outputs, sizeof(BB_bdd));
       if (state->outputs == NULL) {
         return "Unable to allocate memory for outputs";
       }
     break;
 
     case IN:
-      var = bdd_ithvar(line->data.in.index);
+      var = BB_ithvar(line->data.in.index);
       state->inputs[line->data.in.index] = var;
       put_bdd(state, line->data.in.node, var);
     break;
@@ -339,17 +382,17 @@ process_line(Line* line, State* state)
         return "Unable to find output in hash table";
       }
       var = map->func;
-      bdd_addref(var);
+      BB_addref(var);
       state->outputs[line->data.out.index] = var;
       // LAMb: handle outputs and SAT situations
     break;
 
     case AND:
-      op = bddop_and;
+      op = BB_AND;
     case OR:
-      op = (op == -1) ? bddop_or : op;
+      op = (op == -1) ? BB_OR : op;
     case XOR:
-      op = (op == -1) ? bddop_xor : op;
+      op = (op == -1) ? BB_XOR : op;
 
       lhs = get_bdd(state, line->data.n.lhs);
       if (lhs == NULL) {
@@ -360,7 +403,7 @@ process_line(Line* line, State* state)
         return "Unable to find rhs in hash table";
       }
 
-      var = bdd_addref(bdd_apply(lhs->func, rhs->func, op));
+      var = BB_addref(BB_apply(lhs->func, rhs->func, op));
       put_bdd(state, line->data.n.node, var);
     break;
 
@@ -370,7 +413,7 @@ process_line(Line* line, State* state)
         return "Unable to find inverted input in hash table";
       }
 
-      var = bdd_addref(bdd_not(lhs->func));
+      var = BB_addref(BB_not(lhs->func));
       put_bdd(state, line->data.n.node, var);
     break;
 
@@ -398,8 +441,8 @@ init_state(State* state)
   state->outputs = NULL;
   state->line = 0;
 
-  put_bdd(state, 0, bddfalse);
-  put_bdd(state, 1, bddtrue);
+  put_bdd(state, 0, BB_FALSE);
+  put_bdd(state, 1, BB_TRUE);
 
   return state;
 }
@@ -447,7 +490,7 @@ free_list()
   int i=0;
   while (node != NULL)
   {
-    bdd_delref(node->func);
+    BB_delref(node->func);
     next = (Bdd_map*) node->hh.next;
     free(node);
     node = next;
@@ -457,6 +500,7 @@ free_list()
   printf("%d\n", i);
 }
 
+#ifdef BUDDY
 void
 bitbuddy_gbc_handler(int pre, bddGbcStat *stat)
 {
@@ -465,16 +509,34 @@ bitbuddy_gbc_handler(int pre, bddGbcStat *stat)
   }
   bdd_default_gbchandler(pre, stat);
 }
+#endif
 
 void
 init()
 {
+#ifdef BUDDY
   bdd_init(args.n, 10000);
   bdd_autoreorder(BDD_REORDER_WIN2ITE);
 //  bdd_autoreorder(BDD_REORDER_NONE);
   if (args.g) {
     bdd_gbc_hook(&bitbuddy_gbc_handler);
   }
+#elif defined(CUDD)
+    manager = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
+#endif
+}
+
+void
+save_bdd(char* name, BB_bdd bdd)
+{
+#ifdef BUDDY
+    bdd_fnsave(name, bdd);
+#elif defined(CUDD)
+//extern int Cudd_DumpBlif (DdManager *dd, int n, DdNode **f, char const * const *inames, char const * const *onames, char *mname, FILE *fp, int mv);
+    FILE* file = fopen(name, "w");
+    Cudd_DumpBlif(manager, 1, &bdd, NULL, NULL, NULL, file, 0);
+    fclose(file);
+#endif
 }
 
 int
@@ -509,11 +571,11 @@ main(int argc, char** argv)
   for (int i=0; i < state->num_outputs; i++)
   {
 //    itoa(i, buff, 10);
-    sprintf(buff, "%d", i);
-    bdd_fnsave(buff, state->outputs[i]);
+    sprintf(buff, "%d.blif", i);
+    save_bdd(buff, state->outputs[i]);
   }
 
-  bdd_done();
+  BB_done();
   fclose(file);
   exit(0);
 }
