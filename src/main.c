@@ -466,8 +466,11 @@ process_file(FILE* file)
         fprintf(stderr, "%4d: %s:%s", line_number, err, line_buffer);
       }
 
-      printf("%d: %s", state->line+1, line_buffer);
-      fflush(stdout);
+      if (state->line % 1000 == 0)  //LAMb
+      {
+        printf("%d: %s", state->line+1, line_buffer);
+        fflush(stdout);
+      }
       err = process_line(&line, state); // requires table inputs and outputs
       if (err != NULL)
       {
