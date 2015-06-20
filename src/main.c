@@ -4,14 +4,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <assert.h>
+#include <stdarg.h>
 
 #include "types.h"
 #include "parse_cl.h"
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 
 struct arg_t args;
-Bdd_map* bdd_free_list = NULL;
+static Bdd_map* bdd_free_list = NULL;
+static char* mask = NULL;
+static unsigned mask_len = 0;
+static unsigned int ith_var = 0; // LAMb: hack!
 
 #ifdef CUDD
   DdManager* manager = NULL;
@@ -19,32 +24,74 @@ Bdd_map* bdd_free_list = NULL;
 
 /*
 v / version           flag        "version of bitbuddy"
-a                     string      "first set of bits"
-b                     string      "second set of bits"
-c / chunk-size        int         "size of h, a and b (defaults to input size/3)"
-f / free              flag        "don't free nodes"
+b / bits              string      "bits to set for inputs"
+f / file-bits         string      "file containing bits to set for inputs"
+k / keep-nodes        flag        "do not free nodes"
 g / garbage-collect   flag        "free before garbage collection"
-h / hash              string      "hash value input"
-i / initial-hash      flag        "use standard initial sha256 hash"
-l / length            flag        "use length of parameter a"
 n / nodes             int         "number of nodes to pre-allocate"
 s / sat               string      "attempt to find input for given output"
+
+  bool v;
+  char * b;
+  char * f;
+  bool k;
+  bool g;
+  int n;
+  char * s;
+  bool h;
 */
 void
 init_default_args(struct arg_t* args)
 {
-  args->a = NULL;
   args->b = NULL;
-  args->c = 0;
-  args->f = false;
+  args->f = NULL;
+  args->k = false;
   args->g = false;
-  args->h = NULL;
-  args->i = false;
-  args->l = false;
   args->n = 100000;
   args->s = NULL;
 
   args->v = false;
+}
+
+static void
+die(const char* msg, ...)
+{
+  va_list val;
+  fputs("[bitbuddy] ", stderr);
+
+  va_start(val, msg);
+  vfprintf(stderr, msg, val);
+  va_end(val);
+
+  fputc('\n', stderr);
+  fflush(stderr);
+
+  exit(1);
+}
+
+void
+bool_mask(char* bits)
+{
+  if (mask)
+    die("mask has been defined more then once");
+
+  mask_len = strlen(bits);
+  mask = malloc(mask_len);
+  if (!mask)
+    die("unable to allocate memory for bit mask");
+
+  for (int i = 0; i < mask_len; i++)
+  {
+    if (bits[i] == '0') {
+      mask[i] = 0;
+    }
+    else if (bits[i] == '1') {
+      mask[i] = 1;
+    }
+    else {
+      mask[i] = -1;
+    }
+  }
 }
 
 char*
@@ -60,11 +107,8 @@ handle_arguments(int argc, char** argv, struct arg_t* args)
     printf("bitbuddy version %s\n", VERSION);
   }
 
-  if (args->f && args->g)
-  {
-    fprintf(stderr, "'do not free' and 'garbage collect' options can not both be enabled\n");
-    exit(EXIT_FAILURE);
-  }
+  if (args->k && args->g)
+    die("'do not free' and 'garbage collect' options can not both be enabled");
 
   if (args->n < 10000)
   {
@@ -72,13 +116,17 @@ handle_arguments(int argc, char** argv, struct arg_t* args)
     args->n = 10000;
   }
 
-  if (args->i)
+  if (args->b != NULL && args->f != NULL) {
+    die("-b and -f can not be used at the same time");
+  }
+  else if (args->b != NULL)
   {
-    if (args->h != NULL)
-    {
-      fprintf(stderr, "-i and -h can not be used at the same time\n");
-      exit(EXIT_FAILURE);
-    }
+    bool_mask(args->b);
+  }
+  else if (args->f != NULL)
+  {
+    // LAMb: read file into str
+    // call bool_mask(str)
   }
 
   return argv[args->optind];
@@ -223,9 +271,9 @@ Bdd_map*
 create_bdd_map(int node, BB_bdd func)
 {
   Bdd_map* map = (Bdd_map*) malloc(sizeof(Bdd_map));
-  if (map == NULL) {
-    exit(EXIT_FAILURE);
-  }
+  if (map == NULL)
+    die("Unable to allocate bdd map");
+
   map->node = node;
   map->func = func;
 
@@ -294,7 +342,7 @@ free_bdd(Bdd_map* map)
     }
     else
     {
-      if (!args.f) {
+      if (!args.k) {
         BB_delref(map->func);
       }
       free(map);
@@ -336,7 +384,7 @@ BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
     break;
 
     default:
-      exit(-1); //LAMb
+      die("Unknown operation");
   }
   Cudd_Ref(bdd);
   return bdd;
@@ -349,37 +397,79 @@ process_line(Line* line, State* state)
   BB_bdd var;
   Bdd_map *map, *lhs, *rhs;
   int op =-1;
+  int index;
 
   switch(line->op)
   {
     case IO:
       if (state->num_inputs != 0 && state->num_outputs != 0) {
-        return "Attempted to reset inputs or outputs";
+        return "attempted to reset inputs or outputs";
       }
+
       state->num_inputs = line->data.io.inputs;
       state->num_outputs = line->data.io.outputs;
       state->inputs = (BB_bdd*) calloc(state->num_inputs, sizeof(BB_bdd));
+
       if (state->inputs == NULL) {
-        return "Unable to allocate memory for inputs";
+        return "unable to allocate memory for inputs";
       }
-      BB_setvarnum(state->num_inputs);
+      if (mask && mask_len != state->num_inputs) {
+        return "mask length does not equal number of inputs";
+      }
+
+      unsigned int num_vars;
+      if (mask)
+      {
+        num_vars = 0;
+        for (int i=0; i < mask_len; i++)
+        {
+          if (mask[i] == -1) {
+            num_vars++;
+          }
+        }
+      }
+      else {
+        num_vars = state->num_inputs;
+      }
+      assert(num_vars <= state->num_inputs);
+
+      if (num_vars > 0) {
+        BB_setvarnum(num_vars);
+      }
 
       state->outputs = (BB_bdd*) calloc(state->num_outputs, sizeof(BB_bdd));
       if (state->outputs == NULL) {
-        return "Unable to allocate memory for outputs";
+        return "unable to allocate memory for outputs";
       }
     break;
 
     case IN:
-      var = BB_ithvar(line->data.in.index);
-      state->inputs[line->data.in.index] = var;
+      index = line->data.in.index;
+      if (index < 0 || index > state->num_inputs)
+        die("invalid index %d is not in range of inputs %d", index, state->num_inputs);
+
+      switch(mask[index])
+      {
+        case 0:
+          var = BB_FALSE;
+          break;
+
+        case 1:
+          var = BB_TRUE;
+          break;
+
+        default:
+          var = BB_ithvar(ith_var++); // ith_var is incremented for each new var; assumes INPUTs are in order
+      }
+
+      state->inputs[index] = var;
       put_bdd(state, line->data.in.node, var);
     break;
 
     case OUT:
       map = get_bdd(state, line->data.out.input);
       if (map == NULL) {
-        return "Unable to find output in hash table";
+        return "unable to find output in hash table";
       }
       var = map->func;
       BB_addref(var);
@@ -396,11 +486,11 @@ process_line(Line* line, State* state)
 
       lhs = get_bdd(state, line->data.n.lhs);
       if (lhs == NULL) {
-        return "Unable to find lhs in hash table";
+        return "unable to find lhs in hash table";
       }
       rhs = get_bdd(state, line->data.n.rhs);
       if (rhs == NULL) {
-        return "Unable to find rhs in hash table";
+        return "unable to find rhs in hash table";
       }
 
       var = BB_addref(BB_apply(lhs->func, rhs->func, op));
@@ -410,7 +500,7 @@ process_line(Line* line, State* state)
     case NOT:
       lhs = get_bdd(state, line->data.n.lhs);
       if (lhs == NULL) {
-        return "Unable to find inverted input in hash table";
+        return "unable to find inverted input in hash table";
       }
 
       var = BB_addref(BB_not(lhs->func));
@@ -422,7 +512,7 @@ process_line(Line* line, State* state)
     break;
 
     default:
-      return "Unknown operation";
+      return "unknown operation";
   }
   state->line++;
 
@@ -473,10 +563,7 @@ process_file(FILE* file)
       }
       err = process_line(&line, state); // requires table inputs and outputs
       if (err != NULL)
-      {
-        fprintf(stderr, "%4d: %s:%s", line_number, err, line_buffer);
-        exit(EXIT_FAILURE);
-      }
+        die("Failed to process line: %4d: %s:%s", line_number, err, line_buffer);
   }
 
   return state;
@@ -552,19 +639,14 @@ main(int argc, char** argv)
   file_name = handle_arguments(argc, argv, &args);
 
   if (stat(file_name, &sb) == -1)
-  {
-    fprintf(stderr, "File %s does not exist.\n", file_name);
-    exit(EXIT_FAILURE);
-  }
+    die("File %s does not exist", file_name);
+
   off_t size = sb.st_size;
 
   // Open file for processing
   FILE* file = fopen(file_name, "r");
   if (file == NULL)
-  {
-    fprintf(stderr, "An error occured while opening file \"%s\".", file_name);
-    exit(EXIT_FAILURE);
-  }
+    die("An error occured while opening file \"%s\"", file_name);
 
   init();
 
@@ -574,7 +656,7 @@ main(int argc, char** argv)
   for (int i=0; i < state->num_outputs; i++)
   {
 //    itoa(i, buff, 10);
-    sprintf(buff, "%d.blif", i);
+    sprintf(buff, "%03d.blif", i);
     save_bdd(buff, state->outputs[i]);
   }
 

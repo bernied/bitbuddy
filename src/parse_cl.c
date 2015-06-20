@@ -2,7 +2,7 @@
 **
 ** parse_cl.c
 **
-** Sun May 24 17:56:03 2015
+** Sat Jun 20 02:00:02 2015
 ** Linux 3.2.0-23-generic-pae (#36-Ubuntu SMP Tue Apr 10 22:19:09 UTC 2012) i686
 ** vagrant@precise32 (vagrant)
 **
@@ -22,15 +22,13 @@
 static struct option const long_options[] =
 {
   {"version", no_argument, NULL, 'v'},
-  {"chunk-size", required_argument, NULL, 'c'},
-  {"free", no_argument, NULL, 'f'},
+  {"bits", required_argument, NULL, 'b'},
+  {"file-bits", required_argument, NULL, 'f'},
+  {"keep-nodes", no_argument, NULL, 'k'},
   {"garbage-collect", no_argument, NULL, 'g'},
-  {"hash", required_argument, NULL, 'h'},
-  {"initial-hash", no_argument, NULL, 'i'},
-  {"length", no_argument, NULL, 'l'},
   {"nodes", required_argument, NULL, 'n'},
   {"sat", required_argument, NULL, 's'},
-  {"help", no_argument, NULL, 0},
+  {"help", no_argument, NULL, 'h'},
   {NULL, 0, NULL, 0}
 };
 
@@ -50,18 +48,15 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
   int errflg = 0;
 
   my_args->v = false;
-  my_args->a = NULL;
   my_args->b = NULL;
-  my_args->f = false;
+  my_args->f = NULL;
+  my_args->k = false;
   my_args->g = false;
-  my_args->h = NULL;
-  my_args->i = false;
-  my_args->l = false;
   my_args->s = NULL;
-  my_args->help = false;
+  my_args->h = false;
 
   optind = 0;
-  while ((c = getopt_long (argc, argv, "va:b:c:fgh:iln:s:", long_options, &optind)) != - 1)
+  while ((c = getopt_long (argc, argv, "vb:f:kgn:s:h", long_options, &optind)) != - 1)
     {
       switch (c)
         {
@@ -69,36 +64,20 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
           my_args->v = true;
           break;
 
-        case 'a':
-          my_args->a = optarg;
-          break;
-
         case 'b':
           my_args->b = optarg;
           break;
 
-        case 'c':
-          my_args->c = atoi (optarg);
+        case 'f':
+          my_args->f = optarg;
           break;
 
-        case 'f':
-          my_args->f = true;
+        case 'k':
+          my_args->k = true;
           break;
 
         case 'g':
           my_args->g = true;
-          break;
-
-        case 'h':
-          my_args->h = optarg;
-          break;
-
-        case 'i':
-          my_args->i = true;
-          break;
-
-        case 'l':
-          my_args->l = true;
           break;
 
         case 'n':
@@ -109,8 +88,8 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
           my_args->s = optarg;
           break;
 
-        case 0:
-          my_args->help = true;
+        case 'h':
+          my_args->h = true;
           usage (EXIT_SUCCESS, argv[0]);
           break;
 
@@ -148,17 +127,13 @@ void usage (int status, char *program_name)
 Usage: %s [OPTION]... [FILE]\n\
 \n\
   -v, --version         version of bitbuddy\n\
-  -a                    first set of bits\n\
-  -b                    second set of bits\n\
-  -c, --chunk-size      size of h, a and b (defaults to input size/3)\n\
-  -f, --free            don't free nodes\n\
+  -b, --bits            bits to set for inputs\n\
+  -f, --file-bits       file containing bits to set for inputs\n\
+  -k, --keep-nodes      do not free nodes\n\
   -g, --garbage-collect free before garbage collection\n\
-  -h, --hash            hash value input\n\
-  -i, --initial-hash    use standard initial sha256 hash\n\
-  -l, --length          use length of parameter a\n\
   -n, --nodes           number of nodes to pre-allocate\n\
   -s, --sat             attempt to find input for given output\n\
-      --help            display this help and exit\n\
+  -h, --help            Display this help and exit.\n\
 \n", program_name);
     }
   exit (status);
