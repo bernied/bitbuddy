@@ -2,7 +2,7 @@
 **
 ** parse_cl.c
 **
-** Sat Jun 20 02:00:02 2015
+** Sun Jun 21 14:18:10 2015
 ** Linux 3.2.0-23-generic-pae (#36-Ubuntu SMP Tue Apr 10 22:19:09 UTC 2012) i686
 ** vagrant@precise32 (vagrant)
 **
@@ -26,7 +26,9 @@ static struct option const long_options[] =
   {"file-bits", required_argument, NULL, 'f'},
   {"keep-nodes", no_argument, NULL, 'k'},
   {"garbage-collect", no_argument, NULL, 'g'},
+  {"print-gc", no_argument, NULL, 'p'},
   {"nodes", required_argument, NULL, 'n'},
+  {"rounds", required_argument, NULL, 'r'},
   {"sat", required_argument, NULL, 's'},
   {"help", no_argument, NULL, 'h'},
   {NULL, 0, NULL, 0}
@@ -52,11 +54,11 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
   my_args->f = NULL;
   my_args->k = false;
   my_args->g = false;
-  my_args->s = NULL;
+  my_args->p = false;
   my_args->h = false;
 
   optind = 0;
-  while ((c = getopt_long (argc, argv, "vb:f:kgn:s:h", long_options, &optind)) != - 1)
+  while ((c = getopt_long (argc, argv, "vb:f:kgpn:r:s:h", long_options, &optind)) != - 1)
     {
       switch (c)
         {
@@ -80,12 +82,20 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
           my_args->g = true;
           break;
 
+        case 'p':
+          my_args->p = true;
+          break;
+
         case 'n':
           my_args->n = atoi (optarg);
           break;
 
+        case 'r':
+          my_args->r = atoi (optarg);
+          break;
+
         case 's':
-          my_args->s = optarg;
+          my_args->s = atoi (optarg);
           break;
 
         case 'h':
@@ -131,8 +141,10 @@ Usage: %s [OPTION]... [FILE]\n\
   -f, --file-bits       file containing bits to set for inputs\n\
   -k, --keep-nodes      do not free nodes\n\
   -g, --garbage-collect free before garbage collection\n\
+  -p, --print-gc        print garbage collection events\n\
   -n, --nodes           number of nodes to pre-allocate\n\
-  -s, --sat             attempt to find input for given output\n\
+  -r, --rounds          use up to r rounds to find sat\n\
+  -s, --sat             attempt to find input for given output with max bits\n\
   -h, --help            Display this help and exit.\n\
 \n", program_name);
     }

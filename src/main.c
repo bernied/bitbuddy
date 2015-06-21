@@ -30,10 +30,6 @@ static unsigned int ith_var = 0; // LAMb: hack!
     -Add others?
   -Add SAT support
     -Add repeating over input trying to find a good solution
-  -New configs
-    -Add -s/--sat flag
-    -Add -p/--print-gc to print gc msg
-    -Add -n/--number-bits flag to set max number of bits to use
 */
 
 /*
@@ -42,16 +38,20 @@ b / bits              string      "bits to set for inputs"
 f / file-bits         string      "file containing bits to set for inputs"
 k / keep-nodes        flag        "do not free nodes"
 g / garbage-collect   flag        "free before garbage collection"
+p / print-gc          flag        "print garbage collection events"
 n / nodes             int         "number of nodes to pre-allocate"
-s / sat               string      "attempt to find input for given output"
+r / rounds            int         "use up to r rounds to find sat"
+s / sat               int         "attempt to find input for given output with max bits"
 
   bool v;
   char * b;
   char * f;
   bool k;
   bool g;
+  bool p;
   int n;
-  char * s;
+  int r;
+  int s;
   bool h;
 */
 void
@@ -61,8 +61,10 @@ init_default_args(struct arg_t* args)
   args->f = NULL;
   args->k = false;
   args->g = false;
+  args->p = false;
   args->n = 100000;
-  args->s = NULL;
+  args->r = -1;
+  args->s = -1;
 
   args->v = false;
 }
@@ -126,21 +128,27 @@ handle_arguments(int argc, char** argv, struct arg_t* args)
 
   if (args->n < 10000)
   {
-    fprintf(stderr, "number of nodes must be >= 10,000; setting to 10,000\n");
+    fprintf(stderr, "number of nodes must be >= 10,000 (%d); setting to 10,000\n", args->n);
     args->n = 10000;
   }
 
   if (args->b != NULL && args->f != NULL) {
     die("-b and -f can not be used at the same time");
   }
-  else if (args->b != NULL)
-  {
+  else if (args->b != NULL) {
     bool_mask(args->b);
   }
   else if (args->f != NULL)
   {
     // LAMb: read file into str
     // call bool_mask(str)
+  }
+
+  if (args->s < 0 && args->r > 0) {
+    fprintf(stderr, "warning: rounds was set w/o --sat being set, ignoring\n");
+  }
+  if (args->s >= 0 && args->b == NULL) { // LAMb: make args->b get filled w/ random data if not set
+    die("expecting --bits to be set with --sat");
   }
 
   return argv[args->optind];
@@ -618,6 +626,29 @@ process_state(State* state)
   }
 }
 
+// LAMb: finish me
+void
+process_sat(State* state)
+{
+  char *err, str[2048];
+  Line* line = state->line;
+
+  while (line != NULL)
+  {
+    if (line->line_no % 1000 == 0)  //LAMb
+    {
+      line_to_str(line, str);
+      printf("%s\n", str);
+      fflush(stdout);
+    }
+    err = process_line(line, state);
+    if (err != NULL)
+      die("Failed to process line: %4d: %s", line->line_no, err);
+
+    line = line->next;
+  }
+}
+
 void
 free_list()
 {
@@ -641,12 +672,20 @@ free_list()
 
 #ifdef BUDDY
 void
-bitbuddy_gbc_handler(int pre, bddGbcStat *stat)
+bitbuddy_gbc_handler_default(int pre, bddGbcStat *stat)
+{
+  if (args.p) {
+    bdd_default_gbchandler(pre, stat);
+  }
+}
+
+void
+bitbuddy_gbc_handler_free(int pre, bddGbcStat *stat)
 {
   if (pre && bdd_free_list != NULL) {
     free_list();
   }
-  bdd_default_gbchandler(pre, stat);
+  bitbuddy_gbc_handler_default(pre, stat);
 }
 #endif
 
@@ -658,7 +697,10 @@ init()
   bdd_autoreorder(BDD_REORDER_WIN2ITE);
 //  bdd_autoreorder(BDD_REORDER_NONE);
   if (args.g) {
-    bdd_gbc_hook(&bitbuddy_gbc_handler);
+    bdd_gbc_hook(&bitbuddy_gbc_handler_free);
+  }
+  else {
+    bdd_gbc_hook(&bitbuddy_gbc_handler_default);
   }
 #elif defined(CUDD)
     manager = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
@@ -700,7 +742,13 @@ main(int argc, char** argv)
   init();
 
   State* state = process_file(file);
-  process_state(state);
+
+  if (args.s >= 0) {
+    process_sat(state);
+  }
+  else {
+    process_state(state);
+  }
 
   char buff[256];
   for (int i=0; i < state->num_outputs; i++)
