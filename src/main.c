@@ -448,7 +448,8 @@ process_line(Line* line, State* state)
       if (index < 0 || index > state->num_inputs)
         die("invalid index %d is not in range of inputs %d", index, state->num_inputs);
 
-      switch(mask[index])
+      int m = mask ? mask[index] : -1;
+      switch(m)
       {
         case 0:
           var = BB_FALSE;
