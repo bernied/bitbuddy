@@ -63,6 +63,8 @@ typedef enum _op
   IO, IN, OUT, AND, OR, XOR, NOT, FREE
 } Operation;
 
+static char* OpNames[] = { "IO", "IN", "OUT", "AND", "OR", "XOR", "NOT", "FREE" };
+
 struct Node
 {
   int node;
@@ -96,6 +98,8 @@ struct Free
 
 typedef struct line_t
 {
+  struct line_t* next;
+  uint32 line_no;
   Operation op;
   union
   {
@@ -122,7 +126,7 @@ typedef struct state_t
   uint32 num_outputs;
   BB_bdd* outputs;
   BB_bdd sat;
-  int line;
+  Line* line;
 } State;
 
 #endif

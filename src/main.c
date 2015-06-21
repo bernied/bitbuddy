@@ -23,6 +23,20 @@ static unsigned int ith_var = 0; // LAMb: hack!
 #endif
 
 /*
+  TODO:
+  -Read the file into memory
+  -Make bdd's swapable
+    -Add ABCD
+    -Add others?
+  -Add SAT support
+    -Add repeating over input trying to find a good solution
+  -New configs
+    -Add -s/--sat flag
+    -Add -p/--print-gc to print gc msg
+    -Add -n/--number-bits flag to set max number of bits to use
+*/
+
+/*
 v / version           flag        "version of bitbuddy"
 b / bits              string      "bits to set for inputs"
 f / file-bits         string      "file containing bits to set for inputs"
@@ -530,7 +544,7 @@ init_state(State* state)
   state->inputs = NULL;
   state->num_outputs = 0;
   state->outputs = NULL;
-  state->line = 0;
+  state->line = NULL;
 
   put_bdd(state, 0, BB_FALSE);
   put_bdd(state, 1, BB_TRUE);
@@ -543,31 +557,65 @@ process_file(FILE* file)
 {
   char line_buffer[2048];
   uint32 line_number = 0;
-  Line line;
+  Line *line, *prev=NULL;
   State* state;
   state = (State*) malloc(sizeof(State));
   init_state(state);
 
   while (fgets(line_buffer, sizeof(line_buffer), file))
   {
-      ++line_number;
-//      printf("%4d: %s", line_number, line_buffer);
-      char* err = parse_line(line_buffer, &line);
-      if (err != NULL) {
-        fprintf(stderr, "%4d: %s:%s", line_number, err, line_buffer);
-      }
+    ++line_number;
 
-      if (state->line % 1000 == 0)  //LAMb
-      {
-        printf("%d: %s", state->line+1, line_buffer);
-        fflush(stdout);
-      }
-      err = process_line(&line, state); // requires table inputs and outputs
-      if (err != NULL)
-        die("Failed to process line: %4d: %s:%s", line_number, err, line_buffer);
+    line = calloc(1, sizeof(Line)); // zero entire struct
+    if (line == NULL)
+      die("unable to allocate memory for line element");
+
+    line->line_no = line_number;
+    if (prev != NULL) {
+      prev->next = line;
+    }
+    else {
+      state->line = line;
+    }
+    prev = line;
+
+    char* err = parse_line(line_buffer, line);
+    if (err != NULL) {
+      fprintf(stderr, "%4d: %s:%s", line_number, err, line_buffer);
+    }
   }
 
   return state;
+}
+
+void
+line_to_str(Line* line, char* str)
+{
+  //  IO, IN, OUT, AND, OR, XOR, NOT, FREE
+  char* name = OpNames[line->op];
+  sprintf(str, "%u: %s", line->line_no, name);
+}
+
+void
+process_state(State* state)
+{
+  char *err, str[2048];
+  Line* line = state->line;
+
+  while (line != NULL)
+  {
+    if (line->line_no % 1000 == 0)  //LAMb
+    {
+      line_to_str(line, str);
+      printf("%s\n", str);
+      fflush(stdout);
+    }
+    err = process_line(line, state);
+    if (err != NULL)
+      die("Failed to process line: %4d: %s", line->line_no, err);
+
+    line = line->next;
+  }
 }
 
 void
@@ -652,6 +700,7 @@ main(int argc, char** argv)
   init();
 
   State* state = process_file(file);
+  process_state(state);
 
   char buff[256];
   for (int i=0; i < state->num_outputs; i++)

@@ -25,3 +25,6 @@ $(OUT)/bitbuddy: $(OBJS)
 
 clean:
 	rm -f *.o $(OUT)/bitbuddy
+
+blif:
+	rm -f *.blif
