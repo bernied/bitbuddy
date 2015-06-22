@@ -150,6 +150,9 @@ handle_arguments(int argc, char** argv, struct arg_t* args)
   if (args->s >= 0 && args->b == NULL) { // LAMb: make args->b get filled w/ random data if not set
     die("expecting --bits to be set with --sat");
   }
+  if (args->r == 0) {
+    die("expecting --rounds to be set to non-zero number (%d)", args->r);
+  }
 
   return argv[args->optind];
 }
@@ -353,6 +356,18 @@ del_bdd(State* state, int n)
 }
 
 void
+clear_bdds(State* state)
+{
+  Bdd_map *i, *tmp;
+
+  HASH_ITER(hh, state->map, i, tmp)
+  {
+    HASH_DEL(state->map, i);
+    BB_delref(i->func);
+  }
+}
+
+void
 free_bdd(Bdd_map* map)
 {
   if (map != NULL)
@@ -460,7 +475,7 @@ process_line(Line* line, State* state)
       }
 
       state->outputs = (BB_bdd*) calloc(state->num_outputs, sizeof(BB_bdd));
-      if (state->outputs == NULL) {
+      if (!state->outputs) {
         return "unable to allocate memory for outputs";
       }
     break;
@@ -561,7 +576,7 @@ init_state(State* state)
 }
 
 State*
-process_file(FILE* file)
+read_file(FILE* file)
 {
   char line_buffer[2048];
   uint32 line_number = 0;
@@ -605,7 +620,7 @@ line_to_str(Line* line, char* str)
 }
 
 void
-process_state(State* state)
+process_state(State* state, bool ignoreIO)
 {
   char *err, str[2048];
   Line* line = state->line;
@@ -617,6 +632,9 @@ process_state(State* state)
       line_to_str(line, str);
       printf("%s\n", str);
       fflush(stdout);
+    }
+    if (ignoreIO && line->op == IO) {
+      continue;
     }
     err = process_line(line, state);
     if (err != NULL)
@@ -626,26 +644,109 @@ process_state(State* state)
   }
 }
 
+void
+reset_state(State* state)
+{
+  ith_var = 0; // LAMb: hack
+  clear_bdds(state);
+}
+
+int
+adjust_sat_mask(char* smask, int len, int bits)
+{
+  assert(bits >= 0);
+  assert(bits <= len);
+
+  int i=0, b=0;
+
+  if (smask == NULL)
+    die("expecting mask for sat"); // LAMb: remove when create random mask to start w/
+
+  for (i=0; b < bits && i < len; i++)
+  {
+    if (smask[i] != 0 && smask[i] != 1) {
+      b++;
+    }
+  }
+
+  for (;i < len; i++)
+  {
+    if (smask[i] != 0 && smask[i] != 1)
+    {
+      fprintf(stderr, "too many mask bits: setting bit %d to random number\n", i);
+      smask[i] = rand() % 2;
+    }
+  }
+
+  return b;
+}
+
+void
+rand_sat_mask(char* smask, int len, int bits)
+{
+  int c = bits;
+
+  while (c != 0)
+  {
+    int i = rand() % len;
+    if (smask[i] == 0 || smask[i] == 1)
+    {
+      smask[i] = -1;
+      c--;
+    }
+  }
+}
+
+int
+bdd_sat_compare(const void* lhs, const void* rhs)
+{
+    int lhs_sat = (int) bdd_satcount(*((BB_bdd*)lhs));
+    int rhs_sat = (int) bdd_satcount(*((BB_bdd*)rhs));
+
+    return lhs_sat - rhs_sat;
+}
+
+void
+next_state(State* state)
+{
+  BB_bdd* outputs = (BB_bdd*) malloc(state->num_outputs * sizeof(BB_bdd));
+  if (!outputs)
+    die("unable to allocate memory to sort bdds");
+  memcpy(outputs, state->outputs, state->num_outputs * sizeof(BB_bdd));
+
+  qsort(outputs, state->num_outputs, sizeof(BB_bdd), bdd_sat_compare);
+
+  for (int i=0; i < state->num_outputs; i++)
+  {
+    double s = bdd_satcount(outputs[i]);
+    printf("%i\t%f\n", i, s);
+  }
+
+}
+
 // LAMb: finish me
 void
-process_sat(State* state)
+process_sat(State* state, int rounds, int probe)
 {
-  char *err, str[2048];
+  char *err, str[2048], c;
   Line* line = state->line;
 
-  while (line != NULL)
-  {
-    if (line->line_no % 1000 == 0)  //LAMb
-    {
-      line_to_str(line, str);
-      printf("%s\n", str);
-      fflush(stdout);
-    }
-    err = process_line(line, state);
-    if (err != NULL)
-      die("Failed to process line: %4d: %s", line->line_no, err);
+  int bits_set = adjust_sat_mask(mask, mask_len, args.s);
+  if (bits_set < probe) {
+    rand_sat_mask(mask, mask_len, probe - bits_set);
+  }
+  process_state(state, false);
+  next_state(state);  //LAMb
+  rounds--;
 
-    line = line->next;
+  while(rounds != 0)
+  {
+    next_state(state);
+    process_state(state, true);
+
+    if (rounds > 0) {
+      rounds--;
+    }
   }
 }
 
@@ -741,13 +842,13 @@ main(int argc, char** argv)
 
   init();
 
-  State* state = process_file(file);
+  State* state = read_file(file);
 
   if (args.s >= 0) {
-    process_sat(state);
+    process_sat(state, args.r, args.s);
   }
   else {
-    process_state(state);
+    process_state(state, false);
   }
 
   char buff[256];
