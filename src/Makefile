@@ -9,7 +9,8 @@ LBDD=/usr/local/lib/libbdd.a
 #LBDD=/usr/local/lib/libcudd.a /usr/local/lib/libepd.a /usr/local/lib/libutil.a /usr/local/lib/libmtr.a /usr/local/lib/libst.a
 
 CC=clang
-CFLAGS=-std=c99 -I/usr/local/include -I$(INC) -D$(BDD) -Wno-initializer-overrides -O3
+#CFLAGS=-std=c99 -I/usr/local/include -I$(INC) -D$(BDD) -Wno-initializer-overrides -O3
+CFLAGS=-std=c99 -I/usr/local/include -I$(INC) -D$(BDD) -Wno-initializer-overrides -g
 LDFLAGS=-O3
 
 DEPS=$(INC)/parse_cl.h $(INC)/types.h

@@ -124,7 +124,7 @@ typedef struct state_t
   uint32 num_inputs;
   BB_bdd* inputs;
   uint32 num_outputs;
-  BB_bdd* outputs;
+  int* outputs;
   BB_bdd sat;
   Line* line;
 } State;

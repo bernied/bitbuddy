@@ -15,8 +15,8 @@
 struct arg_t args;
 static Bdd_map* bdd_free_list = NULL;
 static char* mask = NULL;
-static unsigned mask_len = 0;
-static unsigned int ith_var = 0; // LAMb: hack!
+static uint32 mask_len = 0;
+static uint32 ith_var = 0; // LAMb: hack!
 
 #ifdef CUDD
   DdManager* manager = NULL;
@@ -454,7 +454,7 @@ process_line(Line* line, State* state)
         return "mask length does not equal number of inputs";
       }
 
-      unsigned int num_vars;
+      uint32 num_vars;
       if (mask)
       {
         num_vars = 0;
@@ -474,7 +474,7 @@ process_line(Line* line, State* state)
         BB_setvarnum(num_vars);
       }
 
-      state->outputs = (BB_bdd*) calloc(state->num_outputs, sizeof(BB_bdd));
+      state->outputs = calloc(state->num_outputs, sizeof(int));
       if (!state->outputs) {
         return "unable to allocate memory for outputs";
       }
@@ -501,18 +501,17 @@ process_line(Line* line, State* state)
       }
 
       state->inputs[index] = var;
-      put_bdd(state, line->data.in.node, var);
+      put_bdd(state, line->data.in.node, var); // LAMb: should we call ref method?
     break;
 
     case OUT:
       map = get_bdd(state, line->data.out.input);
-      if (map == NULL) {
+      if (!map) {
         return "unable to find output in hash table";
       }
-      var = map->func;
-      BB_addref(var);
-      state->outputs[line->data.out.index] = var;
-      // LAMb: handle outputs and SAT situations
+      var = BB_addref(map->func);
+      put_bdd(state, line->data.out.node, var);
+      state->outputs[line->data.out.index] = line->data.out.node;
     break;
 
     case AND:
@@ -523,11 +522,11 @@ process_line(Line* line, State* state)
       op = (op == -1) ? BB_XOR : op;
 
       lhs = get_bdd(state, line->data.n.lhs);
-      if (lhs == NULL) {
+      if (!lhs) {
         return "unable to find lhs in hash table";
       }
       rhs = get_bdd(state, line->data.n.rhs);
-      if (rhs == NULL) {
+      if (!rhs) {
         return "unable to find rhs in hash table";
       }
 
@@ -537,7 +536,7 @@ process_line(Line* line, State* state)
 
     case NOT:
       lhs = get_bdd(state, line->data.n.lhs);
-      if (lhs == NULL) {
+      if (!lhs) {
         return "unable to find inverted input in hash table";
       }
 
@@ -697,31 +696,95 @@ rand_sat_mask(char* smask, int len, int bits)
   }
 }
 
+static State* bdd_sat_compare_state; // LAMb: totally evil!
 int
 bdd_sat_compare(const void* lhs, const void* rhs)
 {
-    int lhs_sat = (int) bdd_satcount(*((BB_bdd*)lhs));
-    int rhs_sat = (int) bdd_satcount(*((BB_bdd*)rhs));
+    int lhs_node = *((int*)lhs);
+    int rhs_node = *((int*)rhs);
 
-    return lhs_sat - rhs_sat;
+    Bdd_map* lhs_map = get_bdd(bdd_sat_compare_state, lhs_node);
+    if (!lhs_map)
+      die("unable to find lhs map for %d", lhs_node);
+
+    Bdd_map* rhs_map = get_bdd(bdd_sat_compare_state, rhs_node);
+    if (!rhs_map)
+      die("unable to find rhs map for %d", rhs_node);
+
+    int lhs_sat = (int) bdd_satcount(lhs_map->func);
+    int rhs_sat = (int) bdd_satcount(rhs_map->func);
+
+    return rhs_sat - lhs_sat;
+}
+
+void sat_print_handler(char* varset, int size)
+{
+  for (int i=0; i < size; ++i)
+  {
+    printf("%c", varset[i] < 0 ? 'x' : varset[i] ? '1' : '0');
+  }
+  printf("\n");
 }
 
 void
 next_state(State* state)
 {
-  BB_bdd* outputs = (BB_bdd*) malloc(state->num_outputs * sizeof(BB_bdd));
+  // copy state->outputs to outputs
+  Bdd_map* map;
+  int* outputs = (int*) malloc(state->num_outputs * sizeof(int));
   if (!outputs)
     die("unable to allocate memory to sort bdds");
-  memcpy(outputs, state->outputs, state->num_outputs * sizeof(BB_bdd));
+  memcpy(outputs, state->outputs, state->num_outputs * sizeof(int));
 
-  qsort(outputs, state->num_outputs, sizeof(BB_bdd), bdd_sat_compare);
+  // sort the list of outputs by sat size
+  bdd_sat_compare_state = state; // LAMb: evil...must remove!
+  qsort(outputs, state->num_outputs, sizeof(int), bdd_sat_compare);
 
-  for (int i=0; i < state->num_outputs; i++)
+  // print outputs
+  // for (int i=0; i < state->num_outputs; i++)
+  // {
+  //   map = get_bdd(state, outputs[i]);
+  //   if (!map)
+  //     die("unable to find bdd for output %d", outputs[i]);
+  //   int s = (int) bdd_satcount(map->func); // LAMb: needs to be wrapped!
+  //   printf("%i\t%d\n", i, s);
+  // }
+
+  // and together until not satisfiable
+
+  map = get_bdd(state, outputs[0]);
+  BB_bdd bdd, prev;
+  prev = BB_addref(map->func);
+  int sc = (int) bdd_satcount(prev);
+  printf("sats\t%d\t%d\n", 0, sc);
+  for (int i=1; i < state->num_outputs; i++)
   {
-    double s = bdd_satcount(outputs[i]);
-    printf("%i\t%f\n", i, s);
+    map = get_bdd(state, outputs[i]);
+    bdd = BB_addref(BB_apply(prev, map->func, BB_AND));
+    sc = (int) bdd_satcount(bdd);
+    printf("sats\t%d\t%d\n", i, sc);
+
+    if (sc == 0)
+    {
+      BB_delref(bdd);
+      state->sat = prev;
+      sc = (int) bdd_satcount(prev);
+      printf("sats\t%d\n", sc);
+      bdd_fnsave("sats.blif", prev);
+      bdd_allsat(prev, sat_print_handler);
+
+      goto free_outputs;
+    }
+    else
+    {
+      BB_delref(prev);
+      prev = bdd;
+    }
   }
 
+  // LAMB something goofy happened
+free_outputs:
+  free(outputs);
 }
 
 // LAMb: finish me
@@ -809,8 +872,10 @@ init()
 }
 
 void
-save_bdd(char* name, BB_bdd bdd)
+save_bdd(State* state, char* name, int node)
 {
+  Bdd_map* map = get_bdd(state, node);
+  BB_bdd bdd = map->func;
 #ifdef BUDDY
     bdd_fnsave(name, bdd);
 #elif defined(CUDD)
@@ -856,7 +921,7 @@ main(int argc, char** argv)
   {
 //    itoa(i, buff, 10);
     sprintf(buff, "%03d.blif", i);
-    save_bdd(buff, state->outputs[i]);
+    save_bdd(state, buff, state->outputs[i]);
   }
 
   BB_done();
