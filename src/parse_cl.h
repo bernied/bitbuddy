@@ -15,7 +15,13 @@
 ******************************************************************************/
 
 #include <stdio.h>
-#include "types.h"
+
+#ifndef bool
+typedef enum bool_t
+{
+  false = 0, true
+} bool;
+#endif
 
 /* customized structure for command line parameters */
 struct arg_t

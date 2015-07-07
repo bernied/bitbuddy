@@ -4,51 +4,7 @@
 #include <sys/types.h>
 #include <ctype.h>
 
-#if defined(BUDDY)
-  #include "bdd.h"
-
-  #define BB_op_type int
-  #define BB_AND bddop_and
-  #define BB_OR bddop_or
-  #define BB_XOR bddop_xor
-  #define BB_FALSE bddfalse
-  #define BB_TRUE bddtrue
-
-  #define BB_bdd bdd
-  #define BB_addref(b) bdd_addref((b))
-  #define BB_delref(b) bdd_delref((b))
-  #define BB_setvarnum(b) bdd_setvarnum((b))
-  #define BB_ithvar(b) bdd_ithvar((b))
-  #define BB_done() bdd_done()
-
-#elif defined(CUDD)
-  #include "util.h"
-  #include "cudd.h"
-
-  #define BB_op_type int
-  #define BB_AND 0
-  #define BB_OR 1
-  #define BB_XOR 2
-  #define BB_FALSE Cudd_ReadZero(manager)
-  #define BB_TRUE Cudd_ReadOne(manager)
-
-  #define BB_bdd DdNode*
-  #define BB_addref(b) (Cudd_Ref((b)),b)
-  #define BB_delref(b) (Cudd_Deref((b)),b)
-  #define BB_setvarnum(i)
-  #define BB_ithvar(b) Cudd_bddIthVar(manager, (b))
-  #define BB_done() Cudd_Quit(manager)
-
-#endif
-
 #include "uthash.h"
-
-#ifndef bool
-typedef enum bool_t
-{
-  false = 0, true
-} bool;
-#endif
 
 typedef unsigned char  uint8;
 typedef unsigned short uint16;

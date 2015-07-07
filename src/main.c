@@ -7,6 +7,14 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#ifdef BUDDY
+#include "bdd_buddy.h"
+#endif
+
+#ifdef CUDD
+#include "bdd_cudd.h"
+#endif
+
 #include "types.h"
 #include "parse_cl.h"
 
@@ -836,8 +844,8 @@ bdd_sat_compare(const void* lhs, const void* rhs)
     if (!rhs_map)
       die("unable to find rhs map for %d", rhs_node);
 
-    int lhs_sat = (int) bdd_satcount(lhs_map->func);
-    int rhs_sat = (int) bdd_satcount(rhs_map->func);
+    int lhs_sat = (int) BB_satcount(lhs_map->func);
+    int rhs_sat = (int) BB_satcount(rhs_map->func);
 
     return rhs_sat - lhs_sat;
 }
@@ -880,23 +888,25 @@ next_state(State* state)
   map = get_bdd(state, outputs[0]);
   BB_bdd bdd, prev;
   prev = BB_addref(map->func);
-  int sc = (int) bdd_satcount(prev);
+  int sc = BB_satcount(prev);
   printf("sats\t%d\t%d\n", 0, sc);
   for (int i=1; i < state->num_outputs; i++)
   {
     map = get_bdd(state, outputs[i]);
     bdd = BB_addref(BB_apply(prev, map->func, BB_AND));
-    sc = (int) bdd_satcount(bdd);
+    sc = BB_satcount(bdd);
     printf("sats\t%d\t%d\n", i, sc);
 
     if (sc == 0)
     {
       BB_delref(bdd);
       state->sat = prev;
-      sc = (int) bdd_satcount(prev);
+      sc = BB_satcount(prev);
       printf("sats\t%d\n", sc);
-      bdd_fnsave("sats.blif", prev);
+      BB_save(prev, "sats.blif");
+#ifdef BUDDY
       bdd_allsat(prev, sat_print_handler);
+#endif
 
       goto free_outputs;
     }
