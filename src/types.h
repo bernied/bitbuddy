@@ -60,16 +60,27 @@ typedef unsigned long uint64;
 
 typedef enum _op
 {
-  IO, IN, OUT, AND, OR, XOR, NOT, FREE
+  IO, IN, OUT, AND, OR, CNF, XOR, NOT, FREE, TRUE, FALSE
 } Operation;
 
-static char* OpNames[] = { "IO", "IN", "OUT", "AND", "OR", "XOR", "NOT", "FREE" };
+static char* OpNames[] = { "IO", "IN", "OUT", "AND", "OR", "CNF", "XOR", "NOT", "FREE", "TRUE", "FALSE" };
 
 struct Node
 {
   int node;
   int lhs;
   int rhs;
+};
+
+struct Cnf
+{
+  int node;
+  int n1;
+  int n2;
+  int n3;
+  int n4;
+  int n5;
+  int n6;
 };
 
 struct Io
@@ -104,6 +115,7 @@ typedef struct line_t
   union
   {
     struct Node n;
+    struct Cnf cnf;
     struct Io io;
     struct In in;
     struct Out out;

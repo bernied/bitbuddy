@@ -172,7 +172,7 @@ parse_line(char* str, Line* line)
         line->op = IO;
         i = 2;
       }
-      else if(*c == 'N')
+      else if (*c == 'N')
       {
         line->op = IN;
         i = 2;
@@ -188,7 +188,7 @@ parse_line(char* str, Line* line)
         line->op = OR;
         i = 3;
       }
-      else if(*c == 'U')
+      else if (*c == 'U')
       {
         line->op = OUT;
         i = 3;
@@ -196,6 +196,11 @@ parse_line(char* str, Line* line)
       else {
         return "Expected 'OR' or 'OUT'";
       }
+    break;
+
+    case 'C':
+      line->op = CNF;
+      i = 6;
     break;
 
     case 'A':
@@ -214,7 +219,23 @@ parse_line(char* str, Line* line)
     break;
 
     case 'F':
-      line->op = FREE;
+      if (*c == 'R')
+      {
+        line->op = FREE;
+        i = 1;
+      }
+      else if (*c == 'A')
+      {
+        line->op = FALSE;
+        i = 1;
+      }
+      else {
+        return "Expected 'FREE' or 'FALSE'";
+      }
+    break;
+
+    case 'T':
+      line->op = TRUE;
       i = 1;
     break;
 
@@ -230,19 +251,35 @@ parse_line(char* str, Line* line)
     }
   }
 
-  int x, y, z;
+  int x1, x2, x3, x4, x5, x6, x7;
   switch (i)
   {
     case 1:
-      sscanf(c, "%d", &x);
+      sscanf(c, "%d", &x1);
       break;
 
     case 2:
-      sscanf(c, "%d\t%d", &x, &y);
+      sscanf(c, "%d\t%d", &x1, &x2);
       break;
 
     case 3:
-      sscanf(c, "%d\t%d\t%d", &x, &y, &z);
+      sscanf(c, "%d\t%d\t%d", &x1, &x2, &x3);
+      break;
+
+    case 4:
+      sscanf(c, "%d\t%d\t%d\t%d", &x1, &x2, &x3, &x4);
+      break;
+
+    case 5:
+      sscanf(c, "%d\t%d\t%d\t%d\t%d", &x1, &x2, &x3, &x4, &x5);
+      break;
+
+    case 6:
+      sscanf(c, "%d\t%d\t%d\t%d\t%d\t%d", &x1, &x2, &x3, &x4, &x5, &x6);
+      break;
+
+    case 7:
+      sscanf(c, "%d\t%d\t%d\t%d\t%d\t%d\t%d", &x1, &x2, &x3, &x4, &x5, &x6, &x7);
       break;
 
     default:
@@ -252,37 +289,52 @@ parse_line(char* str, Line* line)
   switch(line->op)
   {
     case IO:
-      line->data.io.inputs = x;
-      line->data.io.outputs = y;
+      line->data.io.inputs = x1;
+      line->data.io.outputs = x2;
     break;
 
     case IN:
-      line->data.in.node = x;
-      line->data.in.index = y;
+      line->data.in.node = x1;
+      line->data.in.index = x2;
     break;
 
     case OUT:
-      line->data.out.node = x;
-      line->data.out.input = y;
-      line->data.out.index = z;
+      line->data.out.node = x1;
+      line->data.out.input = x2;
+      line->data.out.index = x3;
     break;
 
     case AND:
     case OR:
     case XOR:
-      line->data.n.node = x;
-      line->data.n.lhs = y;
-      line->data.n.rhs = z;
+      line->data.n.node = x1;
+      line->data.n.lhs = x2;
+      line->data.n.rhs = x3;
+    break;
+
+    case CNF:
+      line->data.cnf.node = x1;
+      line->data.cnf.n1 = x2;
+      line->data.cnf.n2 = x3;
+      line->data.cnf.n3 = x4;
+      line->data.cnf.n4 = x5;
+      line->data.cnf.n5 = x6;
+      line->data.cnf.n6 = x7;
+    break;
+
+    case TRUE:
+    case FALSE:
+      line->data.n.node = x1;
     break;
 
     case NOT:
-      line->data.n.node = x;
-      line->data.n.lhs = y;
-      line->data.n.rhs = z;
+      line->data.n.node = x1;
+      line->data.n.lhs = x2;
+      line->data.n.rhs = x3;
     break;
 
     case FREE:
-      line->data.f.node = x;
+      line->data.f.node = x1;
     break;
 
     default:
@@ -431,7 +483,7 @@ BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
 char*
 process_line(Line* line, State* state)
 {
-  BB_bdd var;
+  BB_bdd var, var2;
   Bdd_map *map, *lhs, *rhs;
   int op =-1;
   int index;
@@ -512,6 +564,78 @@ process_line(Line* line, State* state)
       var = BB_addref(map->func);
       put_bdd(state, line->data.out.node, var);
       state->outputs[line->data.out.index] = line->data.out.node;
+    break;
+
+    case CNF:
+      lhs = get_bdd(state, line->data.cnf.n1);
+      if (!lhs) {
+        return "unable to find n1 in hash table";
+      }
+      rhs = get_bdd(state, line->data.cnf.n2);
+      if (!rhs) {
+        return "unable to find b2 in hash table";
+      }
+
+      var = BB_addref(BB_apply(lhs->func, rhs->func, BB_OR));
+      if (line->data.cnf.n3 != 0)
+      {
+        rhs = get_bdd(state, line->data.cnf.n3);
+        if (!rhs) {
+          return "unable to find n3 in hash table";
+        }
+
+        var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
+        BB_delref(var);
+        var = var2;
+
+        if (line->data.cnf.n4 != 0)
+        {
+          rhs = get_bdd(state, line->data.cnf.n4);
+          if (!rhs) {
+            return "unable to find n4 in hash table";
+          }
+
+          var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
+          BB_delref(var);
+          var = var2;
+
+          if (line->data.cnf.n5 != 0)
+          {
+            rhs = get_bdd(state, line->data.cnf.n5);
+            if (!rhs) {
+              return "unable to find n5 in hash table";
+            }
+
+            var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
+            BB_delref(var);
+            var = var2;
+
+            if (line->data.cnf.n6 != 0)
+            {
+              rhs = get_bdd(state, line->data.cnf.n6);
+              if (!rhs) {
+                return "unable to find n6 in hash table";
+              }
+
+              var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
+              BB_delref(var);
+              var = var2;
+            }
+          }
+        }
+      }
+
+      put_bdd(state, line->data.cnf.node, var);
+    break;
+
+    case TRUE:
+      var = BB_TRUE;
+      put_bdd(state, line->data.n.node, var);
+    break;
+
+    case FALSE:
+      var = BB_FALSE;
+      put_bdd(state, line->data.n.node, var);
     break;
 
     case AND:
@@ -626,7 +750,8 @@ process_state(State* state, bool ignoreIO)
 
   while (line != NULL)
   {
-    if (line->line_no % 1000 == 0)  //LAMb
+//    if (line->line_no % 1000 == 0)  //LAMb
+    if (line->line_no > 34882)  //LAMb
     {
       line_to_str(line, str);
       printf("%s\n", str);
