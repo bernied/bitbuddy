@@ -1,3 +1,6 @@
+#ifndef __PARSE_CL__
+#define __PARSE_CL__
+
 /******************************************************************************
 **
 ** parse_cl.h
@@ -42,3 +45,5 @@ struct arg_t
 /* function prototypes */
 void Cmdline (struct arg_t *my_args, int argc, char *argv[]);
 void usage (int status, char *program_name);
+
+#endif

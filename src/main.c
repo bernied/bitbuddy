@@ -7,6 +7,10 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#ifdef ABCD
+#include "bdd_abcd.h"
+#endif
+
 #ifdef BUDDY
 #include "bdd_buddy.h"
 #endif
@@ -15,20 +19,20 @@
 #include "bdd_cudd.h"
 #endif
 
+#ifdef SYLVAN
+#include "bdd_sylvan.h"
+#endif
+
 #include "types.h"
 #include "parse_cl.h"
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 
 struct arg_t args;
 static Bdd_map* bdd_free_list = NULL;
 static char* mask = NULL;
 static uint32 mask_len = 0;
 static uint32 ith_var = 0; // LAMb: hack!
-
-#ifdef CUDD
-  DdManager* manager = NULL;
-#endif
 
 /*
   TODO:
@@ -365,16 +369,6 @@ create_bdd_map(int node, BB_bdd func)
   return map;
 }
 
-BB_bdd
-BB_not(BB_bdd bdd)
-{
-#ifdef BUDDY
-  return bdd_not(bdd);
-#elif defined(CUDD)
-  return Cudd_Not(bdd);
-#endif
-}
-
 void
 put_bdd(State* state, int n, BB_bdd func)
 {
@@ -459,35 +453,6 @@ free_node(State* state, int n)
   free_bdd(map);
 }
 
-BB_bdd
-BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
-{
-#ifdef BUDDY
-  return bdd_apply(lhs, rhs, op);
-#elif defined(CUDD)
-  BB_bdd bdd;
-  switch(op)
-  {
-    case BB_AND:
-      bdd = Cudd_bddAnd(manager, lhs, rhs);
-    break;
-
-    case BB_OR:
-      bdd = Cudd_bddOr(manager, lhs, rhs);
-    break;
-
-    case BB_XOR:
-      bdd = Cudd_bddXor(manager, lhs, rhs);
-    break;
-
-    default:
-      die("Unknown operation");
-  }
-  Cudd_Ref(bdd);
-  return bdd;
-#endif
-}
-
 char*
 process_line(Line* line, State* state)
 {
@@ -549,11 +514,11 @@ process_line(Line* line, State* state)
       switch(m)
       {
         case 0:
-          var = BB_FALSE;
+          var = BB_false();
           break;
 
         case 1:
-          var = BB_TRUE;
+          var = BB_true();
           break;
 
         default:
@@ -637,12 +602,12 @@ process_line(Line* line, State* state)
     break;
 
     case TRUE:
-      var = BB_TRUE;
+      var = BB_true();
       put_bdd(state, line->data.n.node, var);
     break;
 
     case FALSE:
-      var = BB_FALSE;
+      var = BB_false();
       put_bdd(state, line->data.n.node, var);
     break;
 
@@ -700,8 +665,8 @@ init_state(State* state)
   state->outputs = NULL;
   state->line = NULL;
 
-  put_bdd(state, 0, BB_FALSE);
-  put_bdd(state, 1, BB_TRUE);
+  put_bdd(state, 0, BB_false());
+  put_bdd(state, 1, BB_true());
 
   return state;
 }
@@ -759,7 +724,8 @@ process_state(State* state, bool ignoreIO)
   while (line != NULL)
   {
 //    if (line->line_no % 1000 == 0)  //LAMb
-    if (line->line_no > 34882)  //LAMb
+//     if (line->line_no > 34882)  //LAMb
+    if (0)
     {
       line_to_str(line, str);
       printf("%s\n", str);
@@ -969,41 +935,10 @@ free_list()
   printf("%d\n", i);
 }
 
-#ifdef BUDDY
-void
-bitbuddy_gbc_handler_default(int pre, bddGbcStat *stat)
-{
-  if (args.p) {
-    bdd_default_gbchandler(pre, stat);
-  }
-}
-
-void
-bitbuddy_gbc_handler_free(int pre, bddGbcStat *stat)
-{
-  if (pre && bdd_free_list != NULL) {
-    free_list();
-  }
-  bitbuddy_gbc_handler_default(pre, stat);
-}
-#endif
-
 void
 init()
 {
-#ifdef BUDDY
-  bdd_init(args.n, 10000);
-  bdd_autoreorder(BDD_REORDER_WIN2ITE);
-//  bdd_autoreorder(BDD_REORDER_NONE);
-  if (args.g) {
-    bdd_gbc_hook(&bitbuddy_gbc_handler_free);
-  }
-  else {
-    bdd_gbc_hook(&bitbuddy_gbc_handler_default);
-  }
-#elif defined(CUDD)
-    manager = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
-#endif
+  BB_init(&args);
 }
 
 void
@@ -1011,14 +946,7 @@ save_bdd(State* state, char* name, int node)
 {
   Bdd_map* map = get_bdd(state, node);
   BB_bdd bdd = map->func;
-#ifdef BUDDY
-    bdd_fnsave(name, bdd);
-#elif defined(CUDD)
-//extern int Cudd_DumpBlif (DdManager *dd, int n, DdNode **f, char const * const *inames, char const * const *onames, char *mname, FILE *fp, int mv);
-    FILE* file = fopen(name, "w");
-    Cudd_DumpBlif(manager, 1, &bdd, NULL, NULL, NULL, file, 0);
-    fclose(file);
-#endif
+  BB_save(bdd, name);
 }
 
 int

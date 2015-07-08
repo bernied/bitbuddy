@@ -1,8 +1,8 @@
-#ifndef __BDD_CUDD__
-#define __BDD_CUDD__
+#ifndef __BDD_ABCD__
+#define __BDD_ABCD__
 
-#include "util.h"
-#include "cudd.h"
+#include "abcd.h"
+//#include "abcd_node.h"
 #include "parse_cl.h"
 
 // operations
@@ -12,7 +12,7 @@
 #define BB_XOR 2
 
 // main bdd type
-typedef DdNode* BB_bdd;
+typedef aBCD BB_bdd;
 
 // bdd operations
 extern BB_bdd BB_false();
