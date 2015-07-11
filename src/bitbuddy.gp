@@ -1,5 +1,6 @@
 v / version           flag        "version of bitbuddy"
 b / bits              string      "bits to set for inputs"
+c / commands          flag        "show commands"
 f / file-bits         string      "file containing bits to set for inputs"
 k / keep-nodes        flag        "do not free nodes"
 g / garbage-collect   flag        "free before garbage collection"

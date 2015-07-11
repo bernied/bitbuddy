@@ -1,6 +1,6 @@
 # Compiled source #
 ###################
-bitbuddy
+bitbuddy*
 *.dll
 *.exe
 *.o

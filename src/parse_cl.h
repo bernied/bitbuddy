@@ -31,6 +31,7 @@ struct arg_t
 {
   bool v;
   char * b;
+  bool c;
   char * f;
   bool k;
   bool g;

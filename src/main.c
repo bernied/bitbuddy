@@ -37,16 +37,12 @@ static uint32 ith_var = 0; // LAMb: hack!
 /*
   TODO:
   -Read the file into memory
-  -Make bdd's swapable
-    -Add ABCD
-    -Add others?
-  -Add SAT support
-    -Add repeating over input trying to find a good solution
 */
 
 /*
 v / version           flag        "version of bitbuddy"
 b / bits              string      "bits to set for inputs"
+c / commands          flag        "show commands"
 f / file-bits         string      "file containing bits to set for inputs"
 k / keep-nodes        flag        "do not free nodes"
 g / garbage-collect   flag        "free before garbage collection"
@@ -57,6 +53,7 @@ s / sat               int         "attempt to find input for given output with m
 
   bool v;
   char * b;
+  bool c;
   char * f;
   bool k;
   bool g;
@@ -70,6 +67,7 @@ void
 init_default_args(struct arg_t* args)
 {
   args->b = NULL;
+  args->c = false;
   args->f = NULL;
   args->k = false;
   args->g = false;
@@ -723,9 +721,7 @@ process_state(State* state, bool ignoreIO)
 
   while (line != NULL)
   {
-//    if (line->line_no % 1000 == 0)  //LAMb
-//     if (line->line_no > 34882)  //LAMb
-    if (0)
+    if (args.c)
     {
       line_to_str(line, str);
       printf("%s\n", str);

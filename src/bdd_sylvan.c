@@ -89,7 +89,7 @@ BB_init(struct arg_t* args)
 {
   lace_init(0, 1000000);
   lace_startup(0, NULL, NULL);
-  sylvan_init_package(1LL<<24, 1LL<<32, 1LL<<24, 1LL<<32); // LAMb: get values from args!
+  sylvan_init_package(1LL<<24, 1LL<<33, 1LL<<24, 1LL<<33); // LAMb: get values from args!
   sylvan_init_bdd(1);
 }
 

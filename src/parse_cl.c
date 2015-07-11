@@ -23,6 +23,7 @@ static struct option const long_options[] =
 {
   {"version", no_argument, NULL, 'v'},
   {"bits", required_argument, NULL, 'b'},
+  {"commands", no_argument, NULL, 'c'},
   {"file-bits", required_argument, NULL, 'f'},
   {"keep-nodes", no_argument, NULL, 'k'},
   {"garbage-collect", no_argument, NULL, 'g'},
@@ -51,6 +52,7 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
 
   my_args->v = false;
   my_args->b = NULL;
+  my_args->c = false;
   my_args->f = NULL;
   my_args->k = false;
   my_args->g = false;
@@ -58,7 +60,7 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
   my_args->h = false;
 
   optind = 0;
-  while ((c = getopt_long (argc, argv, "vb:f:kgpn:r:s:h", long_options, &optind)) != - 1)
+  while ((c = getopt_long (argc, argv, "vb:f:ckgpn:r:s:h", long_options, &optind)) != - 1)
     {
       switch (c)
         {
@@ -68,6 +70,10 @@ void Cmdline (struct arg_t *my_args, int argc, char *argv[])
 
         case 'b':
           my_args->b = optarg;
+          break;
+
+        case 'c':
+          my_args->c = true;
           break;
 
         case 'f':
@@ -138,6 +144,7 @@ Usage: %s [OPTION]... [FILE]\n\
 \n\
   -v, --version         version of bitbuddy\n\
   -b, --bits            bits to set for inputs\n\
+  -c, --commands        show commands\n\
   -f, --file-bits       file containing bits to set for inputs\n\
   -k, --keep-nodes      do not free nodes\n\
   -g, --garbage-collect free before garbage collection\n\
