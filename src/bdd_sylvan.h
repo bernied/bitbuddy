@@ -5,6 +5,8 @@
 #include <llmsset.h>
 #include "parse_cl.h"
 
+#define CUBE
+
 // operations
 #define BB_op_type int
 #define BB_AND 0
@@ -18,6 +20,7 @@ typedef BDD BB_bdd;
 extern BB_bdd BB_false();
 extern BB_bdd BB_true();
 extern BB_bdd BB_not(BB_bdd bdd);
+extern BB_bdd BB_cube(int cube[], size_t size);
 extern BB_bdd BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op);
 extern BB_bdd BB_addref(BB_bdd bdd);
 extern BB_bdd BB_delref(BB_bdd bdd);

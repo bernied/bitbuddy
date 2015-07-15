@@ -1,5 +1,5 @@
 #include "bdd_sylvan.h"
-
+#include <string.h>
 
 BB_bdd
 BB_false()
@@ -18,6 +18,35 @@ BB_not(BB_bdd bdd)
 {
   LACE_ME;
   return sylvan_not(bdd);
+}
+
+BB_bdd
+BB_cube(int cube[], size_t size)
+{
+  LACE_ME;
+  uint8_t* m = (uint8_t*) alloca(size);
+  BDDVAR* c = (BDDVAR*) alloca(size * sizeof(BDDVAR));
+  memset (c, 0, size * sizeof(BDDVAR));
+
+  for (int i=0; i < size; i++)
+  {
+    if (cube[i] < 0)
+    {
+      m[i] = 1; // invert because cube creates a conjunction instead of disjunction
+      c[i] = -cube[i];
+    }
+    else
+    {
+      m[i] = 0;
+      c[i] = cube[i];
+    }
+  }
+
+  BDDSET vars = sylvan_set_fromarray(c, size);
+  BDD bdd = sylvan_cube(vars, m);
+  sylvan_not(bdd); // turn into disjunction
+
+  return bdd;
 }
 
 BB_bdd

@@ -6,11 +6,11 @@ OUT=.
 LBDD_ABCD=/usr/local/lib/libabcd.a
 LBDD_BUDDY=/usr/local/lib/libbdd.a
 LBDD_CUDD=/usr/local/lib/libcudd.a /usr/local/lib/libepd.a /usr/local/lib/libutil.a /usr/local/lib/libmtr.a /usr/local/lib/libst.a
-LBDD_SYLVAN=/usr/local/lib/libsylvan.a
+LBDD_SYLVAN=/usr/local/lib/libsylvan.a -lpthread -lm
 
 CC=clang
 CFLAGS=-std=gnu11 -I/usr/local/include -I$(INC) -Wno-initializer-overrides -O3
-#CFLAGS=-std=c99 -I/usr/local/include -I$(INC) -D$(BDD) -Wno-initializer-overrides -g
+#CFLAGS=-std=gnu11 -I/usr/local/include -I$(INC) -Wno-initializer-overrides -g
 LDFLAGS=-O3
 
 DEPS=$(INC)/parse_cl.h $(INC)/types.h

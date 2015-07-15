@@ -210,7 +210,7 @@ parse_line(char* str, Line* line)
 
     case 'C':
       line->op = CNF;
-      i = 6;
+      i = 7;
     break;
 
     case 'A':
@@ -458,6 +458,10 @@ process_line(Line* line, State* state)
   Bdd_map *map, *lhs, *rhs;
   int op =-1;
   int index;
+#ifdef CUBE
+  int cube[6];
+  size_t s;
+#endif
 
   switch(line->op)
   {
@@ -538,6 +542,16 @@ process_line(Line* line, State* state)
     break;
 
     case CNF:
+#ifdef CUBE
+    s = 0;
+    cube[0] = line->data.cnf.n1; s += cube[0] == 0 ? 0 : 1;
+    cube[1] = line->data.cnf.n2; s += cube[1] == 0 ? 0 : 1;
+    cube[2] = line->data.cnf.n3; s += cube[2] == 0 ? 0 : 1;
+    cube[3] = line->data.cnf.n4; s += cube[3] == 0 ? 0 : 1;
+    cube[4] = line->data.cnf.n5; s += cube[4] == 0 ? 0 : 1;
+    cube[5] = line->data.cnf.n6; s += cube[5] == 0 ? 0 : 1;
+    var = BB_addref(BB_cube(cube, s));
+#else
       lhs = get_bdd(state, line->data.cnf.n1);
       if (!lhs) {
         return "unable to find n1 in hash table";
@@ -595,6 +609,7 @@ process_line(Line* line, State* state)
           }
         }
       }
+#endif
 
       put_bdd(state, line->data.cnf.node, var);
     break;
