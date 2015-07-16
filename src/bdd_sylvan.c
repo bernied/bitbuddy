@@ -26,7 +26,7 @@ BB_cube(int cube[], size_t size)
   LACE_ME;
   uint8_t* m = (uint8_t*) alloca(size);
   BDDVAR* c = (BDDVAR*) alloca(size * sizeof(BDDVAR));
-  memset (c, 0, size * sizeof(BDDVAR));
+  memset(c, 0, size * sizeof(BDDVAR));
 
   for (int i=0; i < size; i++)
   {
@@ -105,6 +105,16 @@ BB_satcount(BB_bdd bdd)
 {
   LACE_ME;
   return sylvan_satcount(bdd, 100); //LAMb
+}
+
+void
+BB_print_dot(int n, BB_bdd bdd)
+{
+  char file_name[256];
+  sprintf(file_name, "%d.dot", n);
+  FILE* file = fopen(file_name, "w");
+  sylvan_fprintdot(file, bdd);
+  fclose(file);
 }
 
 void

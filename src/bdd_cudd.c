@@ -75,6 +75,12 @@ BB_satcount(BB_bdd bdd)
 }
 
 void
+BB_print_dot(int n, BB_bdd bdd)
+{
+
+}
+
+void
 BB_save(BB_bdd bdd, char* name)
 {
   FILE* file = fopen(name, "w");

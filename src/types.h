@@ -6,20 +6,17 @@
 
 #include "uthash.h"
 
-typedef unsigned char  uint8;
-typedef unsigned short uint16;
-typedef unsigned int  uint32;
-typedef unsigned long uint64;
-// typedef uint8_t  uint8;
-// typedef uint32_t  uint32;
-// typedef uint8_t uint64;
+typedef uint8_t  uint8;
+typedef uint16_t uint16;
+typedef uint32_t  uint32;
+typedef uint64_t uint64;
 
 typedef enum _op
 {
-  IO, IN, OUT, AND, OR, CNF, XOR, NOT, FREE, TRUE, FALSE
+  IO, IN, OUT, DOT, AND, OR, CNF, XOR, NOT, FREE, TRUE, FALSE
 } Operation;
 
-static char* OpNames[] = { "IO", "IN", "OUT", "AND", "OR", "CNF", "XOR", "NOT", "FREE", "TRUE", "FALSE" };
+static char* OpNames[] = { "IO", "IN", "OUT", "DOT", "AND", "OR", "CNF", "XOR", "NOT", "FREE", "TRUE", "FALSE" };
 
 struct Node
 {
@@ -58,6 +55,11 @@ struct Out
   uint32 index;
 };
 
+struct Dot
+{
+  uint32 node;
+};
+
 struct Free
 {
   uint32 node;
@@ -75,6 +77,7 @@ typedef struct line_t
     struct Io io;
     struct In in;
     struct Out out;
+    struct Dot dot;
     struct Free f;
   } data;
 } Line;

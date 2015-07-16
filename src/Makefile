@@ -9,8 +9,8 @@ LBDD_CUDD=/usr/local/lib/libcudd.a /usr/local/lib/libepd.a /usr/local/lib/libuti
 LBDD_SYLVAN=/usr/local/lib/libsylvan.a -lpthread -lm
 
 CC=clang
-CFLAGS=-std=gnu11 -I/usr/local/include -I$(INC) -Wno-initializer-overrides -O3
-#CFLAGS=-std=gnu11 -I/usr/local/include -I$(INC) -Wno-initializer-overrides -g
+#CFLAGS=-std=gnu11 -I/usr/local/include -I$(INC) -Wno-initializer-overrides -O3
+CFLAGS=-std=gnu11 -I/usr/local/include -I$(INC) -Wno-initializer-overrides -g
 LDFLAGS=-O3
 
 DEPS=$(INC)/parse_cl.h $(INC)/types.h

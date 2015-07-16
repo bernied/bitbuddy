@@ -213,6 +213,11 @@ parse_line(char* str, Line* line)
       i = 7;
     break;
 
+    case 'D':
+      line->op = DOT;
+      i = 1;
+    break;
+
     case 'A':
       line->op = AND;
       i = 3;
@@ -312,6 +317,10 @@ parse_line(char* str, Line* line)
       line->data.out.node = x1;
       line->data.out.input = x2;
       line->data.out.index = x3;
+    break;
+
+    case DOT:
+      line->data.dot.node = x1;
     break;
 
     case AND:
@@ -541,6 +550,12 @@ process_line(Line* line, State* state)
       state->outputs[line->data.out.index] = line->data.out.node;
     break;
 
+    case DOT:
+      map = get_bdd(state, line->data.dot.node);
+      var = map->func;
+      BB_print_dot(line->data.dot.node, var);
+    break;
+
     case CNF:
 #ifdef CUBE
     s = 0;
@@ -655,7 +670,7 @@ process_line(Line* line, State* state)
     break;
 
     case FREE:
-      free_node(state, line->data.n.node);
+      free_node(state, line->data.f.node);
     break;
 
     default:
