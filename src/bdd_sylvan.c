@@ -44,9 +44,7 @@ BB_cube(int cube[], size_t size)
 
   BDDSET vars = sylvan_set_fromarray(c, size);
   BDD bdd = sylvan_cube(vars, m);
-  sylvan_not(bdd); // turn into disjunction
-
-  return bdd;
+  return sylvan_not(bdd); // turn into disjunction
 }
 
 BB_bdd

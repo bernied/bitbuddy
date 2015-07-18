@@ -32,7 +32,6 @@ struct arg_t args;
 static Bdd_map* bdd_free_list = NULL;
 static char* mask = NULL;
 static uint32 mask_len = 0;
-static uint32 ith_var = 0; // LAMb: hack!
 
 /*
   TODO:
@@ -533,7 +532,7 @@ process_line(Line* line, State* state)
           break;
 
         default:
-          var = BB_ithvar(ith_var++); // ith_var is incremented for each new var; assumes INPUTs are in order
+          var = BB_ithvar(line->data.in.node);
       }
 
       state->inputs[index] = var;
@@ -573,7 +572,7 @@ process_line(Line* line, State* state)
       }
       rhs = get_bdd(state, line->data.cnf.n2);
       if (!rhs) {
-        return "unable to find b2 in hash table";
+        return "unable to find n2 in hash table";
       }
 
       var = BB_addref(BB_apply(lhs->func, rhs->func, BB_OR));
@@ -771,7 +770,6 @@ process_state(State* state, bool ignoreIO)
 void
 reset_state(State* state)
 {
-  ith_var = 0; // LAMb: hack
   clear_bdds(state);
 }
 
