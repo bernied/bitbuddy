@@ -1,18 +1,17 @@
-#ifndef __BDD_CUDD__
-#define __BDD_CUDD__
+#ifndef __BDD_SDD__
+#define __BDD_SDD__
 
-#include "util.h"
-#include "cudd.h"
+#include <sddapi.h>
 #include "parse_cl.h"
 
 // operations
 #define BB_op_type int
-#define BB_AND 0
-#define BB_OR 1
+#define BB_AND CONJOIN
+#define BB_OR DISJOIN
 #define BB_XOR 2
 
 // main bdd type
-typedef DdNode* BB_bdd;
+typedef SddNode* BB_bdd;
 
 // bdd operations
 extern BB_bdd BB_false();

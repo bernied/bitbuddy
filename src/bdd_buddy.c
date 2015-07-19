@@ -91,7 +91,7 @@ bitbuddy_gbc_handler_free(int pre, bddGbcStat *stat)
 }
 
 void
-BB_init(struct arg_t* args)
+BB_init(struct arg_t* args, int inputs, int outputs)
 {
   bdd_init(args->n, 10000);
   bdd_autoreorder(BDD_REORDER_WIN2ITE);

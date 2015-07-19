@@ -5,13 +5,13 @@ static aBCD_Manager manager;
 BB_bdd
 BB_false()
 {
-  return 0;
+  return 0;  // LAMb: is this correct?
 }
 
 BB_bdd
 BB_true()
 {
-  return 1;
+  return aBCD_not(manager, 0); // LAMb: is this correct?
 }
 
 BB_bdd
@@ -51,6 +51,7 @@ BB_addref(BB_bdd bdd)
 BB_bdd
 BB_delref(BB_bdd bdd)
 {
+//  aBCD_free(bdd); // LAMb: assumes only 1 refernce!
   return bdd;
 }
 
@@ -63,6 +64,8 @@ BB_setvarnum(int vars)
 BB_bdd
 BB_ithvar(int var)
 {
+  // char name[256];
+  // sprintf(name, "%d", var);
   return aBCD_var(manager, var, NULL);
 }
 
@@ -81,11 +84,16 @@ BB_print_dot(int n, BB_bdd bdd)
 void
 BB_save(BB_bdd bdd, char* name)
 {
-  aBCD_dump(manager, bdd, NULL, NULL); // LAMb: wrong
+//  aBCD_dump(manager, bdd, NULL, NULL);
+  char file_name[256];
+  FILE* file = fopen(name, "w");
+  aBCD_print(manager, bdd, file);
+  fflush(file);
+  fclose(file);
 }
 
 void
-BB_init(struct arg_t* args)
+BB_init(struct arg_t* args, int inputs, int outputs)
 {
   manager = aBCD_new_manager(NULL, NULL, NULL, args->n, 10.0);
 }

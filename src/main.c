@@ -19,6 +19,10 @@
 #include "bdd_cudd.h"
 #endif
 
+#ifdef SDD
+#include "bdd_sdd.h"
+#endif
+
 #ifdef SYLVAN
 #include "bdd_sylvan.h"
 #endif
@@ -517,7 +521,7 @@ process_line(Line* line, State* state)
 
     case IN:
       index = line->data.in.index;
-      if (index < 0 || index > state->num_inputs)
+      if (index < 0 || index > state->num_inputs) // LAMb: should we check < 2 (0 & 1 are reserved?)
         die("invalid index %d is not in range of inputs %d", index, state->num_inputs);
 
       int m = mask ? mask[index] : -1;
@@ -699,7 +703,7 @@ init_state(State* state)
 }
 
 State*
-read_file(FILE* file)
+read_command_file(FILE* file)
 {
   char line_buffer[2048];
   uint32 line_number = 0;
@@ -960,9 +964,30 @@ free_list()
 }
 
 void
-init()
+init(FILE* file)
 {
-  BB_init(&args);
+  char line_buffer[2048];
+
+  // read inputs/outputs
+  if (!fgets(line_buffer, sizeof(line_buffer), file))
+    die("File has no lines!");
+  rewind(file);
+
+  char* c = line_buffer;
+  int inputs, outputs;
+  if(*c++ == 'I')
+  {
+    if (*c++ == 'O') {
+      sscanf(c, "\t%d\t%d", &inputs, &outputs);
+    }
+    else {
+      die("Expected 'IO' as first line!");
+    }
+  }
+  else
+    die("Expected 'IO' as first line!");
+
+  BB_init(&args, inputs, outputs);
 }
 
 void
@@ -992,9 +1017,9 @@ main(int argc, char** argv)
   if (file == NULL)
     die("An error occured while opening file \"%s\"", file_name);
 
-  init();
+  init(file);
 
-  State* state = read_file(file);
+  State* state = read_command_file(file);
 
   if (args.s >= 0) {
     process_sat(state, args.r, args.s);

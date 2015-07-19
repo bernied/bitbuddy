@@ -2,7 +2,6 @@
 #define __BDD_ABCD__
 
 #include "abcd.h"
-//#include "abcd_node.h"
 #include "parse_cl.h"
 
 // operations
@@ -26,7 +25,7 @@ extern BB_bdd BB_ithvar(int var);
 extern int BB_satcount(BB_bdd bdd);
 extern void BB_print_dot(int n, BB_bdd bdd);
 extern void BB_save(BB_bdd bdd, char* name);
-extern void BB_init(struct arg_t* args);
+extern void BB_init(struct arg_t* args, int inputs, int outputs);
 extern void BB_done();
 
 #endif

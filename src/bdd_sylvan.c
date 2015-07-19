@@ -95,7 +95,7 @@ BB_bdd
 BB_ithvar(int var)
 {
   LACE_ME;
-  return sylvan_ithvar(var);
+  return sylvan_ref(sylvan_ithvar(var));
 }
 
 int
@@ -112,6 +112,7 @@ BB_print_dot(int n, BB_bdd bdd)
   sprintf(file_name, "%d.dot", n);
   FILE* file = fopen(file_name, "w");
   sylvan_fprintdot(file, bdd);
+  fflush(file);
   fclose(file);
 }
 
@@ -122,7 +123,7 @@ BB_save(BB_bdd bdd, char* name)
 }
 
 void
-BB_init(struct arg_t* args)
+BB_init(struct arg_t* args, int inputs, int outputs)
 {
   lace_init(0, 1000000);
   lace_startup(0, NULL, NULL);

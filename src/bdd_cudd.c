@@ -78,6 +78,12 @@ void
 BB_print_dot(int n, BB_bdd bdd)
 {
 
+  char file_name[256];
+  sprintf(file_name, "%d.dot", n);
+  FILE* file = fopen(file_name, "w");
+  Cudd_DumpDot(manager, 1, &bdd, NULL, NULL, file);
+  fflush(file);
+  fclose(file);
 }
 
 void
@@ -89,7 +95,7 @@ BB_save(BB_bdd bdd, char* name)
 }
 
 void
-BB_init(struct arg_t* args)
+BB_init(struct arg_t* args, int inputs, int outputs)
 {
   manager = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
 }
