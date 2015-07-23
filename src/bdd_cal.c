@@ -22,7 +22,7 @@ BB_not(BB_bdd bdd)
 }
 
 BB_bdd
-BB_apply(BB_bdd lhs, BB_bdd rhs, enum BB_op_type op)
+BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
 {
   BB_bdd bdd;
   switch(op)
