@@ -5,7 +5,7 @@
 #include <llmsset.h>
 #include "parse_cl.h"
 
-#define CUBE
+#define COVER
 
 // operations
 #define BB_op_type int

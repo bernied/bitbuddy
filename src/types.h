@@ -6,6 +6,8 @@
 
 #include "uthash.h"
 
+extern void die(const char* msg, ...);
+
 typedef uint8_t  uint8;
 typedef uint16_t uint16;
 typedef uint32_t  uint32;
@@ -13,10 +15,10 @@ typedef uint64_t uint64;
 
 typedef enum _op
 {
-  IO, IN, OUT, DOT, AND, OR, CNF, XOR, NOT, FREE, TRUE, FALSE
+  IO, IN, OUT, DOT, AND, OR, CON, DIS, XOR, NOT, FREE, TRUE, FALSE
 } Operation;
 
-static char* OpNames[] = { "IO", "IN", "OUT", "DOT", "AND", "OR", "CNF", "XOR", "NOT", "FREE", "TRUE", "FALSE" };
+static char* OpNames[] = { "IO", "IN", "OUT", "DOT", "AND", "OR", "CON", "DIS", "XOR", "NOT", "FREE", "TRUE", "FALSE" };
 
 struct Node
 {
@@ -25,7 +27,7 @@ struct Node
   int rhs;
 };
 
-struct Cnf
+struct NormalForm
 {
   int node;
   int n1;
@@ -73,7 +75,7 @@ typedef struct line_t
   union
   {
     struct Node n;
-    struct Cnf cnf;
+    struct NormalForm nf;
     struct Io io;
     struct In in;
     struct Out out;

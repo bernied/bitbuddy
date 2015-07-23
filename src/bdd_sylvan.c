@@ -21,7 +21,7 @@ BB_not(BB_bdd bdd)
 }
 
 BB_bdd
-BB_cube(int cube[], size_t size)
+BB_disjunctive_cover(int cube[], size_t size)
 {
   LACE_ME;
   uint8_t* m = (uint8_t*) alloca(size);
@@ -44,7 +44,33 @@ BB_cube(int cube[], size_t size)
 
   BDDSET vars = sylvan_set_fromarray(c, size);
   BDD bdd = sylvan_cube(vars, m);
-  return sylvan_not(bdd); // turn into disjunction
+  return sylvan_not(bdd); // turn into disjunction // LAMB: does this autoref?
+}
+
+BB_bdd
+BB_conjunctive_cover(int cube[], size_t size)
+{
+  LACE_ME;
+  uint8_t* m = (uint8_t*) alloca(size);
+  BDDVAR* c = (BDDVAR*) alloca(size * sizeof(BDDVAR));
+  memset(c, 0, size * sizeof(BDDVAR));
+
+  for (int i=0; i < size; i++)
+  {
+    if (cube[i] < 0)
+    {
+      m[i] = 0;
+      c[i] = -cube[i];
+    }
+    else
+    {
+      m[i] = 1;
+      c[i] = cube[i];
+    }
+  }
+
+  BDDSET vars = sylvan_set_fromarray(c, size);
+  return sylvan_cube(vars, m); // LAMB: does this autoref?
 }
 
 BB_bdd
@@ -55,7 +81,7 @@ BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
   switch(op)
   {
     case BB_AND:
-      bdd = sylvan_and(lhs, rhs);
+      bdd = sylvan_and(lhs, rhs); // LAMb: does this autoref?
     break;
 
     case BB_OR:

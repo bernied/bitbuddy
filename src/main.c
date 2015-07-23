@@ -38,7 +38,7 @@
 #include "types.h"
 #include "parse_cl.h"
 
-#define VERSION "0.3"
+#define VERSION "0.4"
 
 struct arg_t args;
 static Bdd_map* bdd_free_list = NULL;
@@ -90,7 +90,7 @@ init_default_args(struct arg_t* args)
   args->v = false;
 }
 
-static void
+void
 die(const char* msg, ...)
 {
   va_list val;
@@ -220,13 +220,24 @@ parse_line(char* str, Line* line)
     break;
 
     case 'C':
-      line->op = CNF;
+      line->op = CON;
       i = 7;
     break;
 
     case 'D':
-      line->op = DOT;
-      i = 1;
+      if (*c == 'I')
+      {
+        line->op = DIS;
+        i = 7;
+      }
+      else if (*c == 'O')
+      {
+        line->op = DOT;
+        i = 1;
+      }
+      else {
+        return "Expected 'DOT' or 'DIS'";
+      }
     break;
 
     case 'A':
@@ -342,14 +353,15 @@ parse_line(char* str, Line* line)
       line->data.n.rhs = x3;
     break;
 
-    case CNF:
-      line->data.cnf.node = x1;
-      line->data.cnf.n1 = x2;
-      line->data.cnf.n2 = x3;
-      line->data.cnf.n3 = x4;
-      line->data.cnf.n4 = x5;
-      line->data.cnf.n5 = x6;
-      line->data.cnf.n6 = x7;
+    case CON:
+    case DIS:
+      line->data.nf.node = x1;
+      line->data.nf.n1 = x2;
+      line->data.nf.n2 = x3;
+      line->data.nf.n3 = x4;
+      line->data.nf.n4 = x5;
+      line->data.nf.n5 = x6;
+      line->data.nf.n6 = x7;
     break;
 
     case TRUE:
@@ -471,17 +483,58 @@ free_node(State* state, int n)
   free_bdd(map);
 }
 
-char*
-process_line(Line* line, State* state)
+#ifndef COVER
+
+BB_bdd
+BB_cover(int cube[], size_t size, BB_op_type bool_op)
 {
   BB_bdd var, var2;
   Bdd_map *map, *lhs, *rhs;
+
+  lhs = get_bdd(state, cube[0]);
+  if (!lhs) {
+    die("unable to find cube %d in hash table", cube[0]);
+  }
+  var = BB_addref(lhs->func);
+
+  for (int i=1; i < size; i++)
+  {
+    rhs = get_bdd(state, cube[i]);
+    if (!rhs) {
+      die("unable to find cube %d in hash table", cube[i]);
+    }
+
+    var2 = BB_addref(BB_apply(var, rhs->func, bool_op));
+    BB_delref(var);
+    var = var2;
+  }
+
+  return var;
+}
+
+BB_bdd
+BB_disjunctive_cover(int cube[], size_t size)
+{
+  return BB_cover(cube, size, BB_OR);
+}
+
+BB_bdd
+BB_conjunctive_cover(int cube[], size_t size)
+{
+  return BB_cover(cube, size, BB_AND);
+}
+
+#endif
+
+char*
+process_line(Line* line, State* state)
+{
+  BB_bdd var;
+  Bdd_map *map, *lhs, *rhs;
   int op =-1;
   int index;
-#ifdef CUBE
   int cube[6];
   size_t s;
-#endif
 
   switch(line->op)
   {
@@ -567,77 +620,17 @@ process_line(Line* line, State* state)
       BB_print_dot(line->data.dot.node, var);
     break;
 
-    case CNF:
-#ifdef CUBE
-    s = 0;
-    cube[0] = line->data.cnf.n1; s += cube[0] == 0 ? 0 : 1;
-    cube[1] = line->data.cnf.n2; s += cube[1] == 0 ? 0 : 1;
-    cube[2] = line->data.cnf.n3; s += cube[2] == 0 ? 0 : 1;
-    cube[3] = line->data.cnf.n4; s += cube[3] == 0 ? 0 : 1;
-    cube[4] = line->data.cnf.n5; s += cube[4] == 0 ? 0 : 1;
-    cube[5] = line->data.cnf.n6; s += cube[5] == 0 ? 0 : 1;
-    var = BB_addref(BB_cube(cube, s));
-#else
-      lhs = get_bdd(state, line->data.cnf.n1);
-      if (!lhs) {
-        return "unable to find n1 in hash table";
-      }
-      rhs = get_bdd(state, line->data.cnf.n2);
-      if (!rhs) {
-        return "unable to find n2 in hash table";
-      }
-
-      var = BB_addref(BB_apply(lhs->func, rhs->func, BB_OR));
-      if (line->data.cnf.n3 != 0)
-      {
-        rhs = get_bdd(state, line->data.cnf.n3);
-        if (!rhs) {
-          return "unable to find n3 in hash table";
-        }
-
-        var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
-        BB_delref(var);
-        var = var2;
-
-        if (line->data.cnf.n4 != 0)
-        {
-          rhs = get_bdd(state, line->data.cnf.n4);
-          if (!rhs) {
-            return "unable to find n4 in hash table";
-          }
-
-          var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
-          BB_delref(var);
-          var = var2;
-
-          if (line->data.cnf.n5 != 0)
-          {
-            rhs = get_bdd(state, line->data.cnf.n5);
-            if (!rhs) {
-              return "unable to find n5 in hash table";
-            }
-
-            var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
-            BB_delref(var);
-            var = var2;
-
-            if (line->data.cnf.n6 != 0)
-            {
-              rhs = get_bdd(state, line->data.cnf.n6);
-              if (!rhs) {
-                return "unable to find n6 in hash table";
-              }
-
-              var2 = BB_addref(BB_apply(var, rhs->func, BB_OR));
-              BB_delref(var);
-              var = var2;
-            }
-          }
-        }
-      }
-#endif
-
-      put_bdd(state, line->data.cnf.node, var);
+    case CON:
+    case DIS:
+      s = 0;
+      cube[0] = line->data.nf.n1; s += cube[0] == 0 ? 0 : 1;
+      cube[1] = line->data.nf.n2; s += cube[1] == 0 ? 0 : 1;
+      cube[2] = line->data.nf.n3; s += cube[2] == 0 ? 0 : 1;
+      cube[3] = line->data.nf.n4; s += cube[3] == 0 ? 0 : 1;
+      cube[4] = line->data.nf.n5; s += cube[4] == 0 ? 0 : 1;
+      cube[5] = line->data.nf.n6; s += cube[5] == 0 ? 0 : 1;
+      var = line->op == CON ? BB_conjunctive_cover(cube, s) : BB_disjunctive_cover(cube, s);
+      put_bdd(state, line->data.nf.node, var);
     break;
 
     case TRUE:

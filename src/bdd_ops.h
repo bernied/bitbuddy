@@ -15,6 +15,7 @@ extern void BB_save(BB_bdd bdd, char* name);
 extern void BB_init(struct arg_t* args, int inputs, int outputs);
 extern void BB_done();
 
-#ifdef CUBE
-extern BB_bdd BB_cube(int cube[], size_t size);
+#ifdef COVER
+extern BB_bdd BB_disjunctive_cover(int cube[], size_t size);
+extern BB_bdd BB_conjunctive_cover(int cube[], size_t size);
 #endif
