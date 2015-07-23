@@ -44,6 +44,7 @@ struct arg_t args;
 static Bdd_map* bdd_free_list = NULL;
 static char* mask = NULL;
 static uint32 mask_len = 0;
+static State* state = NULL;
 
 /*
   TODO:
@@ -400,14 +401,14 @@ create_bdd_map(int node, BB_bdd func)
 }
 
 void
-put_bdd(State* state, int n, BB_bdd func)
+put_bdd(int n, BB_bdd func)
 {
   Bdd_map* map = create_bdd_map(n, func);
   HASH_ADD_INT(state->map, node, map);
 }
 
 Bdd_map*
-get_bdd(State* state, int n)
+get_bdd(int n)
 {
   Bdd_map *s;
   HASH_FIND_INT(state->map, &n, s);
@@ -419,7 +420,7 @@ get_bdd(State* state, int n)
     if (s != NULL)
     {
       BB_bdd inverse = BB_addref(BB_not(s->func));
-      put_bdd(state, n, inverse);
+      put_bdd(n, inverse);
       HASH_FIND_INT(state->map, &n, s);
     }
   }
@@ -428,9 +429,9 @@ get_bdd(State* state, int n)
 }
 
 Bdd_map*
-del_bdd(State* state, int n)
+del_bdd(int n)
 {
-  Bdd_map* map = get_bdd(state, n);
+  Bdd_map* map = get_bdd(n);
   if (map == NULL) {
     return NULL;
   }
@@ -440,7 +441,7 @@ del_bdd(State* state, int n)
 }
 
 void
-clear_bdds(State* state)
+clear_bdds()
 {
   Bdd_map *i, *tmp;
 
@@ -472,14 +473,14 @@ free_bdd(Bdd_map* map)
 }
 
 void
-free_node(State* state, int n)
+free_node(int n)
 {
   Bdd_map *map;
 
-  map = del_bdd(state, n);
+  map = del_bdd(n);
   free_bdd(map);
 
-  map = del_bdd(state, -n); // remove inverse
+  map = del_bdd(-n); // remove inverse
   free_bdd(map);
 }
 
@@ -491,7 +492,7 @@ BB_cover(int cube[], size_t size, BB_op_type bool_op)
   BB_bdd var, var2;
   Bdd_map *map, *lhs, *rhs;
 
-  lhs = get_bdd(state, cube[0]);
+  lhs = get_bdd(cube[0]);
   if (!lhs) {
     die("unable to find cube %d in hash table", cube[0]);
   }
@@ -499,7 +500,7 @@ BB_cover(int cube[], size_t size, BB_op_type bool_op)
 
   for (int i=1; i < size; i++)
   {
-    rhs = get_bdd(state, cube[i]);
+    rhs = get_bdd(cube[i]);
     if (!rhs) {
       die("unable to find cube %d in hash table", cube[i]);
     }
@@ -527,7 +528,7 @@ BB_conjunctive_cover(int cube[], size_t size)
 #endif
 
 char*
-process_line(Line* line, State* state)
+process_line(Line* line)
 {
   BB_bdd var;
   Bdd_map *map, *lhs, *rhs;
@@ -601,21 +602,21 @@ process_line(Line* line, State* state)
       }
 
       state->inputs[index] = var;
-      put_bdd(state, line->data.in.node, var); // LAMb: should we call ref method?
+      put_bdd(line->data.in.node, var); // LAMb: should we call ref method?
     break;
 
     case OUT:
-      map = get_bdd(state, line->data.out.input);
+      map = get_bdd(line->data.out.input);
       if (!map) {
         return "unable to find output in hash table";
       }
       var = BB_addref(map->func);
-      put_bdd(state, line->data.out.node, var);
+      put_bdd(line->data.out.node, var);
       state->outputs[line->data.out.index] = line->data.out.node;
     break;
 
     case DOT:
-      map = get_bdd(state, line->data.dot.node);
+      map = get_bdd(line->data.dot.node);
       var = map->func;
       BB_print_dot(line->data.dot.node, var);
     break;
@@ -630,17 +631,17 @@ process_line(Line* line, State* state)
       cube[4] = line->data.nf.n5; s += cube[4] == 0 ? 0 : 1;
       cube[5] = line->data.nf.n6; s += cube[5] == 0 ? 0 : 1;
       var = line->op == CON ? BB_conjunctive_cover(cube, s) : BB_disjunctive_cover(cube, s);
-      put_bdd(state, line->data.nf.node, var);
+      put_bdd(line->data.nf.node, var);
     break;
 
     case TRUE:
       var = BB_true();
-      put_bdd(state, line->data.n.node, var);
+      put_bdd(line->data.n.node, var);
     break;
 
     case FALSE:
       var = BB_false();
-      put_bdd(state, line->data.n.node, var);
+      put_bdd(line->data.n.node, var);
     break;
 
     case AND:
@@ -650,31 +651,31 @@ process_line(Line* line, State* state)
     case XOR:
       op = (op == -1) ? BB_XOR : op;
 
-      lhs = get_bdd(state, line->data.n.lhs);
+      lhs = get_bdd(line->data.n.lhs);
       if (!lhs) {
         return "unable to find lhs in hash table";
       }
-      rhs = get_bdd(state, line->data.n.rhs);
+      rhs = get_bdd(line->data.n.rhs);
       if (!rhs) {
         return "unable to find rhs in hash table";
       }
 
       var = BB_addref(BB_apply(lhs->func, rhs->func, op));
-      put_bdd(state, line->data.n.node, var);
+      put_bdd(line->data.n.node, var);
     break;
 
     case NOT:
-      lhs = get_bdd(state, line->data.n.lhs);
+      lhs = get_bdd(line->data.n.lhs);
       if (!lhs) {
         return "unable to find inverted input in hash table";
       }
 
       var = BB_addref(BB_not(lhs->func));
-      put_bdd(state, line->data.n.node, var);
+      put_bdd(line->data.n.node, var);
     break;
 
     case FREE:
-      free_node(state, line->data.f.node);
+      free_node(line->data.f.node);
     break;
 
     default:
@@ -685,10 +686,12 @@ process_line(Line* line, State* state)
   return NULL;
 }
 
-State*
-init_state(State* state)
+void
+init_state()
 {
-  if (state == NULL) return  NULL;
+  state = (State*) malloc(sizeof(State));
+  if (state == NULL)
+    die("Unable to allocate internal global state!");
 
   state->map = NULL;
   state->num_inputs = 0;
@@ -697,21 +700,16 @@ init_state(State* state)
   state->outputs = NULL;
   state->line = NULL;
 
-  put_bdd(state, 0, BB_false());
-  put_bdd(state, 1, BB_true());
-
-  return state;
+  put_bdd(0, BB_false());
+  put_bdd(1, BB_true());
 }
 
-State*
+void
 read_command_file(FILE* file)
 {
   char line_buffer[2048];
   uint32 line_number = 0;
   Line *line, *prev=NULL;
-  State* state;
-  state = (State*) malloc(sizeof(State));
-  init_state(state);
 
   while (fgets(line_buffer, sizeof(line_buffer), file))
   {
@@ -735,8 +733,6 @@ read_command_file(FILE* file)
       fprintf(stderr, "%4d: %s:%s", line_number, err, line_buffer);
     }
   }
-
-  return state;
 }
 
 void
@@ -748,7 +744,7 @@ line_to_str(Line* line, char* str)
 }
 
 void
-process_state(State* state, bool ignoreIO)
+process_state(bool ignoreIO)
 {
   char *err, str[2048];
   Line* line = state->line;
@@ -764,7 +760,7 @@ process_state(State* state, bool ignoreIO)
     if (ignoreIO && line->op == IO) {
       continue;
     }
-    err = process_line(line, state);
+    err = process_line(line);
     if (err != NULL)
       die("Failed to process line: %4d: %s", line->line_no, err);
 
@@ -773,9 +769,9 @@ process_state(State* state, bool ignoreIO)
 }
 
 void
-reset_state(State* state)
+reset_state()
 {
-  clear_bdds(state);
+  clear_bdds();
 }
 
 int
@@ -824,18 +820,17 @@ rand_sat_mask(char* smask, int len, int bits)
   }
 }
 
-static State* bdd_sat_compare_state; // LAMb: totally evil!
 int
 bdd_sat_compare(const void* lhs, const void* rhs)
 {
     int lhs_node = *((int*)lhs);
     int rhs_node = *((int*)rhs);
 
-    Bdd_map* lhs_map = get_bdd(bdd_sat_compare_state, lhs_node);
+    Bdd_map* lhs_map = get_bdd(lhs_node);
     if (!lhs_map)
       die("unable to find lhs map for %d", lhs_node);
 
-    Bdd_map* rhs_map = get_bdd(bdd_sat_compare_state, rhs_node);
+    Bdd_map* rhs_map = get_bdd(rhs_node);
     if (!rhs_map)
       die("unable to find rhs map for %d", rhs_node);
 
@@ -855,7 +850,7 @@ void sat_print_handler(char* varset, int size)
 }
 
 void
-next_state(State* state)
+next_state()
 {
   // copy state->outputs to outputs
   Bdd_map* map;
@@ -865,7 +860,6 @@ next_state(State* state)
   memcpy(outputs, state->outputs, state->num_outputs * sizeof(int));
 
   // sort the list of outputs by sat size
-  bdd_sat_compare_state = state; // LAMb: evil...must remove!
   qsort(outputs, state->num_outputs, sizeof(int), bdd_sat_compare);
 
   // print outputs
@@ -880,14 +874,14 @@ next_state(State* state)
 
   // and together until not satisfiable
 
-  map = get_bdd(state, outputs[0]);
+  map = get_bdd(outputs[0]);
   BB_bdd bdd, prev;
   prev = BB_addref(map->func);
   int sc = BB_satcount(prev);
   printf("sats\t%d\t%d\n", 0, sc);
   for (int i=1; i < state->num_outputs; i++)
   {
-    map = get_bdd(state, outputs[i]);
+    map = get_bdd(outputs[i]);
     bdd = BB_addref(BB_apply(prev, map->func, BB_AND));
     sc = BB_satcount(bdd);
     printf("sats\t%d\t%d\n", i, sc);
@@ -919,7 +913,7 @@ free_outputs:
 
 // LAMb: finish me
 void
-process_sat(State* state, int rounds, int probe)
+process_sat(int rounds, int probe)
 {
   char *err, str[2048], c;
   Line* line = state->line;
@@ -928,14 +922,14 @@ process_sat(State* state, int rounds, int probe)
   if (bits_set < probe) {
     rand_sat_mask(mask, mask_len, probe - bits_set);
   }
-  process_state(state, false);
-  next_state(state);  //LAMb
+  process_state(false);
+  next_state();  //LAMb
   rounds--;
 
   while(rounds != 0)
   {
-    next_state(state);
-    process_state(state, true);
+    next_state();
+    process_state(true);
 
     if (rounds > 0) {
       rounds--;
@@ -989,12 +983,13 @@ init(FILE* file)
     die("Expected 'IO' as first line!");
 
   BB_init(&args, inputs, outputs);
+  init_state();
 }
 
 void
-save_bdd(State* state, char* name, int node)
+save_bdd(char* name, int node)
 {
-  Bdd_map* map = get_bdd(state, node);
+  Bdd_map* map = get_bdd(node);
   BB_bdd bdd = map->func;
   BB_save(bdd, name);
 }
@@ -1020,13 +1015,13 @@ main(int argc, char** argv)
 
   init(file);
 
-  State* state = read_command_file(file);
+  read_command_file(file);
 
   if (args.s >= 0) {
-    process_sat(state, args.r, args.s);
+    process_sat(args.r, args.s);
   }
   else {
-    process_state(state, false);
+    process_state(false);
   }
 
   char buff[256];
@@ -1034,7 +1029,7 @@ main(int argc, char** argv)
   {
 //    itoa(i, buff, 10);
     sprintf(buff, "%03d.blif", i);
-    save_bdd(state, buff, state->outputs[i]);
+    save_bdd(buff, state->outputs[i]);
   }
 
   BB_done();
