@@ -20,8 +20,8 @@ BB_not(BB_bdd bdd)
   return Cudd_zddComplement(manager, bdd); // transforms to bdd, inverts and converts back to zdd
 }
 
-BB_bdd
-BB_xor(BB_bdd lhs, BB_bdd rhs)
+static BB_bdd
+zdd_xor(BB_bdd lhs, BB_bdd rhs)
 {
   BB_bdd ldiff = Cudd_zddDiff(manager, lhs, rhs);
   Cudd_Ref(ldiff);
@@ -51,7 +51,7 @@ BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
     break;
 
     case BB_XOR:
-      bdd = BB_xor(lhs, rhs);
+      bdd = zdd_xor(lhs, rhs);
     break;
   }
   return bdd;

@@ -20,25 +20,26 @@ BB_not(BB_bdd bdd)
   return sdd_negate(bdd, manager);
 }
 
+static BB_bdd
+sdd_xor(BB_bdd lhs, BB_bdd rhs)
+{
+  BB_bdd or = sdd_ref(sdd_apply(lhs, rhs, BB_OR, manager), manager);
+  BB_bdd and = sdd_ref(sdd_apply(lhs, rhs, BB_AND, manager), manager);
+  BB_bdd nand = sdd_ref(sdd_negate(and, manager), manager);
+
+  BB_bdd xor = sdd_ref(sdd_apply(or, nand, BB_AND, manager), manager);
+
+  sdd_deref(or, manager);
+  sdd_deref(and, manager);
+  sdd_deref(nand, manager);
+
+  return xor;
+}
+
 BB_bdd
 BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
 {
-  BB_bdd bdd;
-  if (op == BB_XOR)
-  {
-    BB_bdd or = sdd_ref(sdd_apply(lhs, rhs, BB_OR, manager), manager);
-    BB_bdd and = sdd_ref(sdd_apply(lhs, rhs, BB_AND, manager), manager);
-    BB_bdd nand = sdd_ref(sdd_negate(and, manager), manager);
-    bdd = sdd_ref(sdd_apply(or, nand, BB_AND, manager), manager);
-    sdd_deref(or, manager);
-    sdd_deref(and, manager);
-    sdd_deref(nand, manager);
-  }
-  else {
-    bdd = sdd_ref(sdd_apply(lhs, rhs, op, manager), manager);
-  }
-
-  return bdd;
+  return (op == BB_XOR) ? sdd_xor(lhs, rhs) : sdd_ref(sdd_apply(lhs, rhs, op, manager), manager);
 }
 
 BB_bdd
