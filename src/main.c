@@ -23,6 +23,10 @@
 #include "bdd_cudd.h"
 #endif
 
+#ifdef ZCUDD
+#include "zdd_cudd.h"
+#endif
+
 #ifdef SDD
 #include "bdd_sdd.h"
 #endif
