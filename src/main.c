@@ -15,6 +15,10 @@
 #include "bdd_buddy.h"
 #endif
 
+#ifdef CAL
+#include "bdd_cal.h"
+#endif
+
 #ifdef CUDD
 #include "bdd_cudd.h"
 #endif

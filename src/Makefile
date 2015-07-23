@@ -5,6 +5,7 @@ OUT=.
 
 LBDD_ABCD=/usr/local/lib/libabcd.a
 LBDD_BUDDY=/usr/local/lib/libbdd.a
+LBDD_CAL=/usr/local/lib/libcal.a
 LBDD_CUDD=/usr/local/lib/libcudd.a /usr/local/lib/libepd.a /usr/local/lib/libutil.a /usr/local/lib/libmtr.a /usr/local/lib/libst.a
 LBDD_SDD=/usr/local/lib/libsdd.a
 LBDD_SYLVAN=/usr/local/lib/libsylvan.a -lpthread -lm
@@ -18,17 +19,21 @@ LDFLAGS=-g
 DEPS=$(INC)/parse_cl.h $(INC)/types.h
 OBJS_ABCD=$(OBJ)/parse_cl.o $(OBJ)/main_abcd.o $(OBJ)/bdd_abcd.o
 OBJS_BUDDY=$(OBJ)/parse_cl.o $(OBJ)/main_buddy.o $(OBJ)/bdd_buddy.o
+OBJS_CAL=$(OBJ)/parse_cl.o $(OBJ)/main_cal.o $(OBJ)/bdd_cal.o
 OBJS_CUDD=$(OBJ)/parse_cl.o $(OBJ)/main_cudd.o $(OBJ)/bdd_cudd.o
 OBJS_SYLVAN=$(OBJ)/parse_cl.o $(OBJ)/main_sylvan.o $(OBJ)/bdd_sylvan.o
 OBJS_SDD=$(OBJ)/parse_cl.o $(OBJ)/main_sdd.o $(OBJ)/bdd_sdd.o
 
-all: $(OUT)/bitbuddy_a $(OUT)/bitbuddy_b $(OUT)/bitbuddy_c $(OUT)/bitbuddy_d $(OUT)/bitbuddy_s
+all: $(OUT)/bitbuddy_a $(OUT)/bitbuddy_b $(OUT)/bitbuddy_c $(OUT)/bitbuddy_d $(OUT)/bitbuddy_l $(OUT)/bitbuddy_s
 
 bdd_abcd.o: bdd_abcd.c bdd_abcd.h $(DEPS)
 	$(CC) -c -c -DABCD -o $@ $< $(CFLAGS)
 
 bdd_buddy.o: bdd_buddy.c bdd_buddy.h $(DEPS)
 	$(CC) -c -c -DBUDDY -o $@ $< $(CFLAGS)
+
+bdd_cal.o: bdd_cal.c bdd_cal.h $(DEPS)
+	$(CC) -c -c -DCAL -o $@ $< $(CFLAGS)
 
 bdd_cudd.o: bdd_cudd.c bdd_cudd.h $(DEPS)
 	$(CC) -c -c -DCUDD -o $@ $< $(CFLAGS)
@@ -44,6 +49,9 @@ main_abcd.o: main.c bdd_abcd.h $(DEPS)
 
 main_buddy.o: main.c bdd_buddy.h $(DEPS)
 	$(CC) -c -DBUDDY -o $@ $< $(CFLAGS)
+
+main_cal.o: main.c bdd_cal.h $(DEPS)
+	$(CC) -c -DCAL -o $@ $< $(CFLAGS)
 
 main_cudd.o: main.c bdd_cudd.h $(DEPS)
 	$(CC) -c -DCUDD -o $@ $< $(CFLAGS)
@@ -65,6 +73,9 @@ $(OUT)/bitbuddy_c: $(OBJS_CUDD)
 
 $(OUT)/bitbuddy_d: $(OBJS_SDD)
 	$(CC) -o $(OUT)/$@ $^ $(LBDD_SDD) -DSDD $(LDFLAGS)
+
+$(OUT)/bitbuddy_l: $(OBJS_CAL)
+	$(CC) -o $(OUT)/$@ $^ $(LBDD_CAL) -DCAL $(LDFLAGS)
 
 $(OUT)/bitbuddy_s: $(OBJS_SYLVAN)
 	$(CC) -o $(OUT)/$@ $^ $(LBDD_SYLVAN) -DSYLVAN $(LDFLAGS)
