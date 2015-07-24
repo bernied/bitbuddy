@@ -17,20 +17,17 @@ BB_true()
 BB_bdd
 BB_not(BB_bdd bdd)
 {
-  return Cudd_zddComplement(manager, bdd); // transforms to bdd, inverts and converts back to zdd
+  return  BB_addref(Cudd_zddComplement(manager, bdd)); // transforms to bdd, inverts and converts back to zdd
 }
 
 static BB_bdd
 zdd_xor(BB_bdd lhs, BB_bdd rhs)
 {
-  BB_bdd ldiff = Cudd_zddDiff(manager, lhs, rhs);
-  Cudd_Ref(ldiff);
-  BB_bdd rdiff = Cudd_zddDiff(manager, rhs, lhs);
-  Cudd_Ref(rdiff);
-  BB_bdd bdd = Cudd_zddUnion(manager, ldiff, rdiff);
-  Cudd_Ref(bdd);
-  Cudd_Deref(ldiff);
-  Cudd_Deref(rdiff);
+  BB_bdd ldiff = BB_addref(Cudd_zddDiff(manager, lhs, rhs));
+  BB_bdd rdiff = BB_addref(Cudd_zddDiff(manager, rhs, lhs));
+  BB_bdd bdd = BB_addref(Cudd_zddUnion(manager, ldiff, rdiff));
+  BB_delref(ldiff);
+  BB_delref(rdiff);
   return bdd;
 }
 
@@ -42,12 +39,12 @@ BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
   {
     case BB_AND:
       bdd = Cudd_zddIntersect(manager, lhs, rhs);
-      Cudd_Ref(bdd);
+      BB_addref(bdd);
     break;
 
     case BB_OR:
       bdd = Cudd_zddUnion(manager, lhs, rhs);
-      Cudd_Ref(bdd);
+      BB_addref(bdd);
     break;
 
     case BB_XOR:
@@ -67,7 +64,7 @@ BB_addref(BB_bdd bdd)
 BB_bdd
 BB_delref(BB_bdd bdd)
 {
-  Cudd_Deref(bdd);
+  Cudd_RecursiveDerefZdd(manager, bdd);
   return bdd;
 }
 
@@ -80,7 +77,7 @@ BB_setvarnum(int vars)
 BB_bdd
 BB_ithvar(int var)
 {
-  return Cudd_zddIthVar(manager, var);
+  return BB_addref(Cudd_zddIthVar(manager, var));
 }
 
 int

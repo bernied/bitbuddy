@@ -64,7 +64,7 @@ BB_setvarnum(int vars)
 BB_bdd
 BB_ithvar(int var)
 {
-  return Cudd_bddIthVar(manager, var);
+  return BB_addref(Cudd_bddIthVar(manager, var));
 }
 
 int
