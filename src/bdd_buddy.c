@@ -15,13 +15,13 @@ BB_true()
 BB_bdd
 BB_not(BB_bdd bdd)
 {
-  return bdd_not(bdd);
+  return BB_addref(bdd_not(bdd));
 }
 
 BB_bdd
 BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
 {
-  return bdd_apply(lhs, rhs, op);
+  return BB_addref(bdd_apply(lhs, rhs, op));
 }
 
 BB_bdd
