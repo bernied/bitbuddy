@@ -496,9 +496,18 @@ BB_cover(int cube[], size_t size, BB_op_type bool_op)
   if (!lhs) {
     die("unable to find cube %d in hash table", cube[0]);
   }
-  var = lhs->func;
 
-  for (int i=1; i < size; i++)
+  if (size == 1) {
+    return BB_addref(var);
+  }
+
+  rhs = get_bdd(cube[1]);
+  if (!rhs) {
+    die("unable to find cube %d in hash table", cube[1]);
+  }
+  var = BB_apply(lhs->func, rhs->func, bool_op);
+
+  for (int i=2; i < size; i++)
   {
     rhs = get_bdd(cube[i]);
     if (!rhs) {

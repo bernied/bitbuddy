@@ -18,7 +18,7 @@ BB_true()
 BB_bdd
 BB_not(BB_bdd bdd)
 {
-  return Cal_BddNot(manager, bdd);
+  return BB_addref(Cal_BddNot(manager, bdd));
 }
 
 BB_bdd
@@ -39,8 +39,7 @@ BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
       bdd = Cal_BddXor(manager, lhs, rhs);
     break;
   }
-  Cal_BddUnFree(manager, bdd);
-  return bdd;
+  return BB_addref(bdd);
 }
 
 BB_bdd
