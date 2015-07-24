@@ -17,7 +17,7 @@ BB_true()
 BB_bdd
 BB_not(BB_bdd bdd)
 {
-  return sdd_negate(bdd, manager);
+  return sdd_ref(sdd_negate(bdd, manager), manager);
 }
 
 static BB_bdd
