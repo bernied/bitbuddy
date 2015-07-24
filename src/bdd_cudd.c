@@ -17,7 +17,7 @@ BB_true()
 BB_bdd
 BB_not(BB_bdd bdd)
 {
-  return Cudd_Not(bdd);
+  return BB_addref(Cudd_Not(bdd));
 }
 
 BB_bdd
@@ -38,8 +38,7 @@ BB_apply(BB_bdd lhs, BB_bdd rhs, BB_op_type op)
       bdd = Cudd_bddXor(manager, lhs, rhs);
     break;
   }
-  Cudd_Ref(bdd);
-  return bdd;
+  return BB_addref(bdd);
 }
 
 BB_bdd
@@ -52,7 +51,7 @@ BB_addref(BB_bdd bdd)
 BB_bdd
 BB_delref(BB_bdd bdd)
 {
-  Cudd_Deref(bdd);
+  Cudd_RecursiveDeref(manager, bdd);
   return bdd;
 }
 

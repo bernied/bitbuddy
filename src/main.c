@@ -419,7 +419,7 @@ get_bdd(int n)
     HASH_FIND_INT(state->map, &inv_n, s);
     if (s != NULL)
     {
-      BB_bdd inverse = BB_addref(BB_not(s->func));
+      BB_bdd inverse = BB_not(s->func);
       put_bdd(n, inverse);
       HASH_FIND_INT(state->map, &n, s);
     }
@@ -496,7 +496,7 @@ BB_cover(int cube[], size_t size, BB_op_type bool_op)
   if (!lhs) {
     die("unable to find cube %d in hash table", cube[0]);
   }
-  var = BB_addref(lhs->func);
+  var = lhs->func;
 
   for (int i=1; i < size; i++)
   {
@@ -505,7 +505,7 @@ BB_cover(int cube[], size_t size, BB_op_type bool_op)
       die("unable to find cube %d in hash table", cube[i]);
     }
 
-    var2 = BB_addref(BB_apply(var, rhs->func, bool_op));
+    var2 = BB_apply(var, rhs->func, bool_op);
     BB_delref(var);
     var = var2;
   }
@@ -610,7 +610,7 @@ process_line(Line* line)
       if (!map) {
         return "unable to find output in hash table";
       }
-      var = BB_addref(map->func);
+      var = map->func;
       put_bdd(line->data.out.node, var);
       state->outputs[line->data.out.index] = line->data.out.node;
     break;
@@ -660,7 +660,7 @@ process_line(Line* line)
         return "unable to find rhs in hash table";
       }
 
-      var = BB_addref(BB_apply(lhs->func, rhs->func, op));
+      var = BB_apply(lhs->func, rhs->func, op);
       put_bdd(line->data.n.node, var);
     break;
 
@@ -670,7 +670,7 @@ process_line(Line* line)
         return "unable to find inverted input in hash table";
       }
 
-      var = BB_addref(BB_not(lhs->func));
+      var = BB_not(lhs->func);
       put_bdd(line->data.n.node, var);
     break;
 
@@ -876,13 +876,13 @@ next_state()
 
   map = get_bdd(outputs[0]);
   BB_bdd bdd, prev;
-  prev = BB_addref(map->func);
+  prev = map->func;
   int sc = BB_satcount(prev);
   printf("sats\t%d\t%d\n", 0, sc);
   for (int i=1; i < state->num_outputs; i++)
   {
     map = get_bdd(outputs[i]);
-    bdd = BB_addref(BB_apply(prev, map->func, BB_AND));
+    bdd = BB_apply(prev, map->func, BB_AND);
     sc = BB_satcount(bdd);
     printf("sats\t%d\t%d\n", i, sc);
 
