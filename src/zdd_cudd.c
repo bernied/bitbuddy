@@ -11,7 +11,9 @@ BB_false()
 BB_bdd
 BB_true()
 {
-  return Cudd_ReadZddOne(manager, 0); // LAMb: need max cover!
+  BB_bdd bdd = Cudd_ReadZddOne(manager, 0);
+  Cudd_Ref(bdd);
+  return bdd;
 }
 
 BB_bdd
@@ -71,13 +73,15 @@ BB_delref(BB_bdd bdd)
 void
 BB_setvarnum(int vars)
 {
-
+  for (int i=0; i < vars; i++) {
+    Cudd_zddIthVar(manager, i);
+  }
 }
 
 BB_bdd
 BB_ithvar(int var)
 {
-  return BB_addref(Cudd_zddIthVar(manager, var));
+  return BB_addref(Cudd_zddIthVar(manager, var-1));
 }
 
 int
@@ -101,9 +105,9 @@ BB_print_dot(int n, BB_bdd bdd)
 void
 BB_save(BB_bdd bdd, char* name)
 {
-  FILE* file = fopen(name, "w");
-  Cudd_DumpBlif(manager, 1, &bdd, NULL, NULL, NULL, file, 0);
-  fclose(file);
+  // FILE* file = fopen(name, "w");
+  // Cudd_DumpBlif(manager, 1, &bdd, NULL, NULL, NULL, file, 0);
+  // fclose(file);
 }
 
 void
