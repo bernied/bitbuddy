@@ -15,10 +15,10 @@ typedef uint64_t uint64;
 
 typedef enum _op
 {
-  IO, IN, OUT, DOT, AND, OR, CON, DIS, XOR, NOT, FREE, TRUE, FALSE
+  NOP, IO, IN, OUT, DOT, AND, OR, CON, DIS, XOR, NOT, FREE, TRUE, FALSE
 } Operation;
 
-static char* OpNames[] = { "IO", "IN", "OUT", "DOT", "AND", "OR", "CON", "DIS", "XOR", "NOT", "FREE", "TRUE", "FALSE" };
+static char* OpNames[] = { "NOP", "IO", "IN", "OUT", "DOT", "AND", "OR", "CON", "DIS", "XOR", "NOT", "FREE", "TRUE", "FALSE" };
 
 struct Node
 {

@@ -188,6 +188,10 @@ parse_line(char* str, Line* line)
   // Parse out the operator
   switch (*c++)
   {
+    case '#':
+      line->op = NOP;
+      return NULL;
+
     case 'I':
       if (*c == 'O')
       {
@@ -548,6 +552,9 @@ process_line(Line* line)
 
   switch(line->op)
   {
+    case NOP:
+      break;
+
     case IO:
       if (state->num_inputs != 0 && state->num_outputs != 0) {
         return "attempted to reset inputs or outputs";
